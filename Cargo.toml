@@ -8,7 +8,7 @@ description = "a fast, secure, and configurable multi-listener server with ML-KE
 homepage = "https://carefuldata.com"
 repository = "https://github.com/jpegleg/kiabluejay"
 readme = "README.md"
-keywords = ["server", "web-server", "tokio", "actix", "rustls", "hybrid-pqc"]
+keywords = ["hybrid-pqc", "web-server", "tokio", "actix", "rustls"]
 categories = ["network-programming", "web-programming::http-server"]
 
 [dependencies]
