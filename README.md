@@ -2,11 +2,12 @@
 
 # kiabluejay
 
-Kiabluejay is very fast and secure. It enables web serving with hybrid PQC, JSON HTTP event logging, as well as simple session cookies.
+Kiabluejay is fast and security focused. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs, JSON HTTP event logging, as well as simple session cookies.
 
-The use of the cookies is optional, but they are an available content age gate (age 21) feature and the page values
-are required in the YAML. Use your real intended index for index_first_visit. The other three pages are only
-used if /session is used and thus cookies are created or denied.
+The use of the cookies is optional, but they are an available content age gate (age 21) feature. The related "page" config values
+are required in the YAML. Use your intended index for "/" is configured with index_first_visit. The other three "pages" are only
+used if /session is used and thus cookies are created or denied. The index_returning_visit is the page to display if a cookie is present.
+The session_age_lte_20 is a configured page to display if a user supplies an age under 21.
 
 Configure an Actix async IO server for one or more listeners for a single set of web files with the `morph.yaml` file.
 
@@ -49,8 +50,11 @@ Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiamagpie) w
 All together they are the kiastack and can handle domain routing, failover, and many different kinds of web serving needs while having a strong security posture and being high performance.
 
 Kiamagpie has more features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
-Kiabluejay is focused speed and security, cookie enablement for content requiring 21 years of age or older, and hot content reloading (not hot key and cert reloading.
-Both have configurable redirects and are multi-listener.
+Kiabluejay is focused speed and security, cookie enablement for content requiring 21 years of age or older, and hot content reloading (not hot key and cert reloading).
+Both have configurable redirects, have JSON event logs, and are multi-listener. The kiamagpie event logs are more comprehensive, while kiabluejay does have some non-JSON output for some
+error conditions and is only tracking JSON events at the HTTP level, where as kiamagpie tracks events at the TCP level.
+
+Kiabluejay will quickly panic if a certificate or key could not be loaded during initialization, this is intentional. Read output if the behavior is not what you expect and double check the mounts, morph.yaml values, file and directory names and permissions.
 
 ## Installation
 
