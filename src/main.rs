@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
+use std::env;
 use std::fs::File;
-use std::io::BufReader;
-use std::io::Write;
+use std::io::{BufReader, Write};
 
 use actix_files::NamedFile;
 use actix_session::{
@@ -19,13 +19,12 @@ use actix_web::{
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
 use chrono::prelude::*;
-use log::LevelFilter;
 use rustls::crypto::{aws_lc_rs as provider, CryptoProvider};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{self};
+use log::LevelFilter;
 use serde::Deserialize;
-use uuid::Uuid;
 
 #[derive(Deserialize)]
 struct Config {
@@ -64,7 +63,7 @@ struct TlsConfig {
 
 #[derive(serde::Deserialize)]
 struct Age {
-    pub age: i32,
+    pub fage: i32,
 }
 
 #[derive(Clone)]
@@ -80,7 +79,7 @@ async fn newcook(
     session: Session,
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
-    let id = info.age;
+    let id = info.fage;
     let mut counter = 0;
 
     if id > 20 {
@@ -90,6 +89,7 @@ async fn newcook(
         } else {
             let _ = session.insert("counter", counter);
         }
+
         open_configured_file(
             &state.static_dir,
             &state.pages.session_age_gt_20,
@@ -118,6 +118,7 @@ async fn index(
         } else {
             let _ = session.insert("counter", counter);
         }
+
         open_configured_file(
             &state.static_dir,
             &state.pages.index_returning_visit,
@@ -149,6 +150,22 @@ async fn static_with_rewrites(
     NamedFile::open_async(full_path)
         .await
         .map_err(|_| actix_web::error::ErrorNotFound("file not found"))
+}
+
+fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
+    let trimmed = input.trim_start_matches('/');
+    let path = Path::new(trimmed);
+
+    let mut clean = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(part) => clean.push(part),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
+    }
+
+    Some(clean)
 }
 
 async fn open_configured_file(
@@ -200,9 +217,8 @@ async fn main() -> eyre::Result<()> {
         .filter_module("actix_server", LevelFilter::Warn)
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
-
     let readi: String = Utc::now().to_rfc3339();
-    let runid = Uuid::new_v4().to_string();
+    let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
     log::info!(
         "{{\"event\":\"initialized\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
@@ -215,7 +231,6 @@ async fn main() -> eyre::Result<()> {
         rewrites: config.web.rewrites.clone(),
         pages: config.web.pages.clone(),
     });
-
 
     loop {
         let readi: String = Utc::now().to_rfc3339();
@@ -236,7 +251,7 @@ async fn main() -> eyre::Result<()> {
                 .wrap(middleware::DefaultHeaders::new().add(("x-frame-options", "SAMEORIGIN")))
                 .wrap(middleware::DefaultHeaders::new().add(("x-xss-protection", "1; mode=block")))
                 .wrap(middleware::Logger::new(
-                    "{\"event\":\"ingress_http\",\"client_address\":\"%a\",\"request_start_time\":\"%t\",\"HTTP\":\"%s\",\"http_request_first_line\":\"%r\",\"size\":\"%b\",\"server_time\":\"%T\",\"referer\":\"%{Referer}i\",\"user_agent\":\"%{User-Agent}i\",\"env_data\":\"%{RUN_ENV}e\"}"
+                    "{\"event\":\"ingress_http\",\"client_address\":\"%a\",\"request_start_time\":\"%t\",\"HTTP\":\"%s\",\"http_request_first_line\":\"%r\",\"size\":\"%b\",\"server_time\":\"%T\",\"referer\":\"%{Referer}i\",\"user_agent\":\"%{User-Agent}i\",\"run_id\":\"%{RUN_ID}e\"}"
                 ))
                 .wrap(
                     SessionMiddleware::builder(
