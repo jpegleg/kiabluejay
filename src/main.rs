@@ -220,7 +220,7 @@ async fn main() -> eyre::Result<()> {
     let readi: String = Utc::now().to_rfc3339();
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
     log::info!(
-        "{{\"event\":\"initialized\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.1.5\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
