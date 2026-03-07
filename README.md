@@ -53,6 +53,10 @@ Here is an example of pulling the image from docker hub and running via Podman o
 
 ```
 podman pull docker.io/carefuldata/kiabluejay:latest
+
+export RUN_ID=$(cat /dev/urandom | base64 | head -n2 | tail -n1 | cut -c1-32) # pass whatever value you want to be logged as "run_id" which each log event
+# the default run_id is "kiabluejay"
+
 podman run -d -it --network=host -v /opt/kiamagpie_live:/morph.yaml carefuldata/kiabluejay
 
 ```
