@@ -28,8 +28,7 @@ listeners:
 rewrites:
   "/about": "/about.html"
 ```
-The login.html could then use `<form action="/session">` and submit session information, or some other backend could
-put to /session after the form calls it, for some more complex verification etc.
+The login.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55.
 
 A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
 for the web server to use. The cert.pem is likely the leaf and intermediate.
