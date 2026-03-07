@@ -1,0 +1,32 @@
+[package]
+name = "kiabluejay"
+version = "0.1.5"
+edition = "2024"
+authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
+license = "MIT"
+description = "a fast, secure, and configurable multi-listener server with ML-KEM hybrid PQC support "
+homepage = "https://carefuldata.com"
+repository = "https://github.com/jpegleg/kiabluejay"
+readme = "README.md"
+keywords = ["server", "web-server", "tokio", "actix", "rustls", "hybrid-pqc"]
+categories = ["network-programming", "web-programming::http-server"]
+
+[dependencies]
+actix-web = { version = "4.13", features = ["rustls", "rustls-0_23"] }
+rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
+rustls-webpki = { version = "0.102.8", features = ["aws_lc_rs"] }
+rustls-pemfile = "2"
+aws-lc-rs = { version = "1.16", features = ["ring-sig-verify", "unstable"] }
+actix-web-lab = "0.17"
+actix-files = "0.6"
+log = "0.4"
+env_logger = "0.11"
+eyre = { version = "0.6", default-features = false, features = ["auto-install", "track-caller"] }
+color-eyre = "0.6"
+tokio = { version = "1.50.0", features = ["time", "rt", "macros"] }
+chrono = "0.4"
+uuid = { version = "*", features = ["serde", "v4"] }
+actix-session = { version = "0.7.2", features = ["cookie-session"] }
+cookie = "0.16"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml = "0.9.34"
