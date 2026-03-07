@@ -3,7 +3,9 @@
 # kiabluejay
 
 Kiabluejay is very fast and secure, enabling hybrid PQC, as well as cheap session cookies.
-The use of the cookies is optional, but they are an available age gate feature.
+The use of the cookies is optional, but they are an available age gate (age 21) feature and the page values
+are required in the YAML. Use your real intended index for index_first_visit. The other three pages are only
+used if /session is used and thus cookies are created or denied.
 
 Configure an Actix async IO server for one or more listeners for a single set of web files with the `morph.yaml` file.
 
@@ -31,7 +33,7 @@ rewrites:
 The login.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55.
 
 A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
-for the web server to use. The cert.pem is likely the leaf and intermediate.
+for the web server to use. The cert.pem is likely the leaf and intermediate. Redirection to TLS and strict transport security are enabled.
 
 The `static_dir` points to the web root on the file system.
 
