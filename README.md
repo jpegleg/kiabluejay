@@ -45,7 +45,7 @@ Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiagateway/)
 
 ## Installation
 
-Kiagateway is available on [github](https://github.com/jpegleg/kiagateway/), [crates.io](https://crates.io/crates/kiagateway), and [docker hub](https://hub.docker.com/r/carefuldata/kiagateway).
+Kiabluejay is available on [github](https://github.com/jpegleg/kiabluejay), [crates.io](https://crates.io/crates/kiabluejay), and [docker hub](https://hub.docker.com/r/carefuldata/kiabluejay).
 
 The container image is very small and hardened, with only a single statically linked Rust binary added to a minimized container "scratch" image.
 
@@ -65,12 +65,12 @@ podman run -d -it --network=host -v /opt/kiamagpie_live:/morph.yaml carefuldata/
 Installing via Cargo:
 
 ```
-cargo install kiagateway
+cargo install kiabluejay
 ```
 
 Kiagbluejay can also be compiled from source or installed from precompiled release binaries via github.
 
-Kiabluejay works well in Kubernetes, too, just specify the config and file mounts in the manifest.
+Kiabluejay works well in Kubernetes, too, just specify the `morph.yaml` config and file mounts in the manifest, etc etc.
 
 
 ## Project promises
