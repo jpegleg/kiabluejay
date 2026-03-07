@@ -45,7 +45,7 @@ The `rewrites` section enables configurable rewrites.
 The `worker` count sets the number of worker threads to spawn during initialization. You might do 1 or 2 workers per vCPU. When in doubt, use 2.
 
 Also see [kiaproxy](https://github.com/jpegleg/kiaproxy) and [kiagateay](https://github.com/jpegleg/kiagateway/) for networking support.
-Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiagateway/) which does caching, QUIC, and cert hot-reloading.
+Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiamagpie) which does caching, QUIC, and cert hot-reloading.
 All together they are the kiastack and can handle domain routing, failover, and many different kinds of web serving needs while having a strong security posture and being high performance.
 
 Kiamagpie has more features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
