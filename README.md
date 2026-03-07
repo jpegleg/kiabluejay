@@ -2,12 +2,15 @@
 
 # kiabluejay
 
-Kiabluejay is very fast and secure, enabling hybrid PQC, as well as cheap session cookies.
-The use of the cookies is optional, but they are an available age gate (age 21) feature and the page values
+Kiabluejay is very fast and secure. It enables web serving with hybrid PQC, JSON HTTP event logging, as well as simple session cookies.
+
+The use of the cookies is optional, but they are an available content age gate (age 21) feature and the page values
 are required in the YAML. Use your real intended index for index_first_visit. The other three pages are only
 used if /session is used and thus cookies are created or denied.
 
 Configure an Actix async IO server for one or more listeners for a single set of web files with the `morph.yaml` file.
+
+Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443.
 
 ```
 workers: 1
@@ -43,6 +46,11 @@ The `worker` count sets the number of worker threads to spawn during initializat
 
 Also see [kiaproxy](https://github.com/jpegleg/kiaproxy) and [kiagateay](https://github.com/jpegleg/kiagateway/) for networking support.
 Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiagateway/) which does caching, QUIC, and cert hot-reloading.
+All together they are the kiastack and can handle domain routing, failover, and many different kinds of web serving needs while having a strong security posture and being high performance.
+
+Kiamagpie has more features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
+Kiabluejay is focused speed and security, cookie enablement for content requiring 21 years of age or older, and hot content reloading (not hot key and cert reloading.
+Both have configurable redirects and are multi-listener.
 
 ## Installation
 
@@ -59,10 +67,10 @@ export RUN_ID=$(cat /dev/urandom | base64 | head -n2 | tail -n1 | cut -c1-32) # 
 # the default run_id is "kiabluejay"
 
 podman run -d -it --network=host \
-  -v /opt/kiamagpie_live:/morph.yaml \
-  -v /var/www/html:/var/www/html/
-  -v /opt/kiamagpie_crypt:/opt/crypt/ \
-  carefuldata/kiabluejay
+  -v /opt/kiamagpie_live/morph.yaml:/morph.yaml \
+  -v /var/www/html/:/var/www/html/
+  -v /opt/kiamagpie_crypt/:/opt/crypt/ \
+  carefuldata/kiabluejay:latest
 
 ```
 
