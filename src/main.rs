@@ -144,30 +144,11 @@ async fn static_with_rewrites(
         .map(String::as_str)
         .unwrap_or(request_path);
 
-    let safe_rel_path = sanitize_relative_path(rewritten)
-        .ok_or_else(|| actix_web::error::ErrorBadRequest("invalid path"))?;
-
-    let full_path = state.static_dir.join(safe_rel_path);
+    let full_path = state.static_dir.join(rewritten);
 
     NamedFile::open_async(full_path)
         .await
         .map_err(|_| actix_web::error::ErrorNotFound("file not found"))
-}
-
-fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
-    let trimmed = input.trim_start_matches('/');
-    let path = Path::new(trimmed);
-
-    let mut clean = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Normal(part) => clean.push(part),
-            Component::CurDir => {}
-            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
-        }
-    }
-
-    Some(clean)
 }
 
 async fn open_configured_file(
