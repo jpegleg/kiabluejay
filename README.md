@@ -64,7 +64,6 @@ podman run -d -it --network=host \
   carefuldata/kiabluejay
 
 ```
-.
 
 Installing via Cargo:
 
