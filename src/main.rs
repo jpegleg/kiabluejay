@@ -133,25 +133,6 @@ async fn index(
     }
 }
 
-async fn static_with_rewrites(
-    req: HttpRequest,
-    state: web::Data<Arc<AppState>>,
-) -> actix_web::Result<NamedFile> {
-    let request_path = req.path();
-
-    let rewritten = state
-        .rewrites
-        .get(request_path)
-        .map(String::as_str)
-        .unwrap_or(request_path);
-
-    let full_path = state.static_dir.join(rewritten);
-
-    NamedFile::open_async(full_path)
-        .await
-        .map_err(|_| actix_web::error::ErrorNotFound("file not found"))
-}
-
 fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
     let trimmed = input.trim_start_matches('/');
     let path = Path::new(trimmed);
@@ -168,14 +149,37 @@ fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
     Some(clean)
 }
 
+async fn static_with_rewrites(
+    req: HttpRequest,
+    state: web::Data<Arc<AppState>>,
+) -> actix_web::Result<NamedFile> {
+    let request_path = req.path();
+
+    let rewritten = state
+        .rewrites
+        .get(request_path)
+        .map(String::as_str)
+        .unwrap_or(request_path);
+
+    let safe_rel_path = sanitize_relative_path(rewritten)
+        .ok_or_else(|| actix_web::error::ErrorBadRequest("invalid path"))?;
+
+    let mut full_path = state.static_dir.join(safe_rel_path);
+
+    if full_path.is_dir() {
+        full_path = full_path.join("index.html");
+    }
+
+    NamedFile::open_async(full_path)
+        .await
+        .map_err(|_| actix_web::error::ErrorNotFound("file not found"))
+}
+
 async fn open_configured_file(
     static_dir: &Path,
     relative_path: &str,
 ) -> actix_web::Result<NamedFile> {
-    let safe_rel_path = sanitize_relative_path(relative_path)
-        .ok_or_else(|| actix_web::error::ErrorBadRequest("invalid configured path"))?;
-
-    let full_path = static_dir.join(safe_rel_path);
+    let full_path = static_dir.join(relative_path);
 
     NamedFile::open_async(full_path)
         .await
