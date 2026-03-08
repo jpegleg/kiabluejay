@@ -4,18 +4,9 @@
 
 Kiabluejay is fast and security focused. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs, JSON HTTP event logging, as well as simple session cookies.
 
-The use of the cookies is optional, but they are an available content age gate (age 21) feature that could be used for some other purposes, too. 
+The use of the cookies is optional, but they are an available content age gate (age 21) feature, that could be used for some other purposes, too. 
 
-The related "page" config values are required in the YAML. This configuration is rather rigid in the current versions.
-
-Use your intended index for "/" by configuring with index_first_visit as a "page" file within the "web" section of the `morph.yaml` file. 
-
-The other three "pages" are only used if /session is used and thus cookies are created or denied.
-
-The index_returning_visit is the page to display if a cookie is present.
-The session_age_lte_20 is a configured page to display if a user supplies an age under 21.
-
-Configure an Actix async IO server for one or more listeners for a single set of web files with the `morph.yaml` file.
+Configure an Actix async IO server for one or more listeners for a single set of web files by using the `morph.yaml` file.
 
 Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443.
 
@@ -25,22 +16,35 @@ workers: 1
 web:
   static_dir: /var/www/html/
   pages:
-    index_first_visit: "verify_age_landing_page.html"
-    index_returning_visit: "index.html"
-    session_age_gt_20: "index.html"
-    session_age_lte_20: "notice.html"
-
+    index_first_visit: "index.html"
+    index_returning_visit: "index2.html"
+    session_age_gt_20: "index2.html"
+    session_age_lte_20: "index3.html"
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  session:
+    enabled: true
+    ttl_hours: 2
 listeners:
   - port: 443
     tls:
       cert_path: /opt/morpho/cert.pem
       key_path: /opt/morpho/key.pem
   - port: 80
-
-rewrites:
-  "/about": "/about.html"
 ```
-The login.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55.
+The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55.
+
+<b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
+This means that any CSS, javascript, etc must be inside that "index_first_visist" file.</b>
+
+If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visist" page.
+
+
 
 A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
 for the web server to use. The cert.pem is likely the leaf and intermediate. Redirection to TLS and strict transport security are enabled.
