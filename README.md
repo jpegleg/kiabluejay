@@ -42,7 +42,7 @@ The index.html could then use `<form action="/session">` and submit session info
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file.</b>
 
-If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visist" page.
+If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
 
 
