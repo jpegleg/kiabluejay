@@ -15,7 +15,7 @@ use actix_web::{
     middleware,
     middleware::Condition,
     web,
-    App, HttpRequest, HttpResponse, HttpServer,
+    App, HttpRequest, HttpServer,
 };
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
