@@ -77,10 +77,11 @@ Here is an example of pulling the image from docker hub and running via Podman o
 ```
 podman pull docker.io/carefuldata/kiabluejay:latest
 
-export RUN_ID=$(cat /dev/urandom | base64 | head -n2 | tail -n1 | cut -c1-32) # pass whatever value you want to be logged as "run_id" which each log event
-# the default run_id is "kiabluejay"
+export RUN_ID="$(cat /dev/random | head -n2 | base64 | tr -d '\n' | cut -c 1-12)"# pass whatever value you want to be logged as "run_id" which each log event
+# the default run_id is "kiabluejay" but if default will only log at init, not http event, default run_id of an http event is "-".
 
 podman run -d -it --network=host \
+  --env RUN_ID \
   -v /opt/kiamagpie_live/morph.yaml:/morph.yaml \
   -v /var/www/html/:/var/www/html/
   -v /opt/kiamagpie_crypt/:/opt/crypt/ \
