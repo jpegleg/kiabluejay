@@ -95,7 +95,7 @@ Installing via Cargo:
 cargo install kiabluejay
 ```
 
-Kiagbluejay can also be compiled from source or installed from precompiled release binaries via github.
+Kiabluejay can also be compiled from source or installed from precompiled release binaries via github.
 
 Kiabluejay works well in Kubernetes, too, just specify the `morph.yaml` config and file mounts in the manifest, etc etc.
 
