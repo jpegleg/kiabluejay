@@ -1,6 +1,6 @@
 [package]
 name = "kiabluejay"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
 license = "MIT"
@@ -22,7 +22,7 @@ actix-files = "0.6"
 log = "0.4"
 env_logger = "0.11"
 eyre = { version = "0.6", default-features = false, features = ["auto-install", "track-caller"] }
-tokio = { version = "1.50.0", features = ["time", "rt", "macros"] }
+tokio = { version = "1.52.1", features = ["time", "rt", "macros"] }
 chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
