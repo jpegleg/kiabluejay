@@ -2,9 +2,19 @@
 
 # kiabluejay
 
-Kiabluejay is fast and security focused. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs, JSON HTTP event logging, as well as simple session cookies.
+Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as simple session cookies.
 
 The use of the cookies is optional, but they are an available content age gate (age 21) feature, that could be used for some other purposes, too. 
+
+Some headers are not configurable and required, set automatically by kiabluejay for security reasons:
+
+```
+    "x-content-type-options": "nosniff"
+    "x-frame-options": "SAMEORIGIN"
+    "x-xss-protection": "1; mode=block"
+```
+
+Any other headers can be set via the `morph.yaml` headers section. See the example YAML below.
 
 Configure an Actix async IO server for one or more listeners for a single set of web files by using the `morph.yaml` file.
 
