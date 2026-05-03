@@ -21,11 +21,17 @@ use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
 use chrono::prelude::*;
 use log::LevelFilter;
-use rustls::crypto::{aws_lc_rs as provider, CryptoProvider};
+use rustls::crypto::{CryptoProvider, aws_lc_rs as provider};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{self};
 use serde::Deserialize;
+
+const PROTECTED_HEADERS: &[&str] = &[
+    "x-content-type-options",
+    "x-frame-options",
+    "x-xss-protection",
+];
 
 #[derive(Deserialize)]
 struct Config {
@@ -42,6 +48,8 @@ struct WebConfig {
     pages: PageConfig,
     #[serde(default)]
     session: SessionConfig,
+    #[serde(default)]
+    headers: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -123,16 +131,14 @@ async fn newcook(
 }
 
 #[get("/")]
-async fn index(
-    req: HttpRequest,
-    state: web::Data<Arc<AppState>>,
-) -> actix_web::Result<NamedFile> {
+async fn index(req: HttpRequest, state: web::Data<Arc<AppState>>) -> actix_web::Result<NamedFile> {
     if state.session.enabled {
         let session = req.get_session();
 
         if let Ok(Some(count)) = session.get::<i32>("counter") {
             let _ = session.insert("counter", count + 1);
-            return open_configured_file(&state.static_dir, &state.pages.index_returning_visit).await;
+            return open_configured_file(&state.static_dir, &state.pages.index_returning_visit)
+                .await;
         }
 
         return open_configured_file(&state.static_dir, &state.pages.index_first_visit).await;
@@ -294,13 +300,37 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.1.6\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.1.7\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
 
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
     let config: Config = serde_yml::from_reader(config_file).expect("failed to read morph.yaml");
+
+    let skipped: Vec<String> = config
+        .web
+        .headers
+        .keys()
+        .filter(|k| PROTECTED_HEADERS.contains(&k.to_lowercase().as_str()))
+        .cloned()
+        .collect();
+
+    if !skipped.is_empty() {
+        log::info!(
+            "{{\"event\":\"protected_headers_skipped\",\"headers\":\"{}\",\"run_id\":\"{}\"}}",
+            skipped.join(", "),
+            runid
+        );
+    }
+
+    let custom_headers: Vec<(String, String)> = config
+        .web
+        .headers
+        .iter()
+        .filter(|(k, _)| !PROTECTED_HEADERS.contains(&k.to_lowercase().as_str()))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
 
     let state = Arc::new(AppState {
         static_dir: PathBuf::from(config.web.static_dir.clone()),
@@ -324,6 +354,11 @@ async fn main() -> eyre::Result<()> {
     let workers = config.workers.unwrap_or(2);
 
     let mut server = HttpServer::new(move || {
+        let mut custom_default_headers = middleware::DefaultHeaders::new();
+        for (name, value) in &custom_headers {
+            custom_default_headers = custom_default_headers.add((name.as_str(), value.as_str()));
+        }
+
         App::new()
             .app_data(web::Data::new(state.clone()))
             .wrap(RedirectHttps::default())
@@ -337,6 +372,7 @@ async fn main() -> eyre::Result<()> {
             .wrap(
                 middleware::DefaultHeaders::new().add(("x-xss-protection", "1; mode=block")),
             )
+            .wrap(custom_default_headers)
             .wrap(middleware::Logger::new(
                 "{\"event\":\"ingress_http\",\"client_address\":\"%a\",\"request_start_time\":\"%t\",\"HTTP\":\"%s\",\"http_request_first_line\":\"%r\",\"size\":\"%b\",\"server_time\":\"%T\",\"referer\":\"%{Referer}i\",\"user_agent\":\"%{User-Agent}i\",\"run_id\":\"%{RUN_ID}e\"}",
             ))
