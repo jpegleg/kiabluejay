@@ -33,6 +33,8 @@ const PROTECTED_HEADERS: &[&str] = &[
     "x-xss-protection",
 ];
 
+const DEFAULT_TTL_HOURS: i64 = 2;
+
 #[derive(Deserialize)]
 struct Config {
     workers: Option<usize>,
@@ -64,21 +66,17 @@ struct PageConfig {
 struct SessionConfig {
     #[serde(default)]
     enabled: bool,
-    #[serde(default = "default_session_ttl_hours")]
+    #[serde(default)]
     ttl_hours: i64,
     #[serde(default)]
     secure_cookie: bool,
-}
-
-fn default_session_ttl_hours() -> i64 {
-    2
 }
 
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            ttl_hours: default_session_ttl_hours(),
+            ttl_hours: DEFAULT_TTL_HOURS,
             secure_cookie: false,
         }
     }
