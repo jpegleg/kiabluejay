@@ -7,7 +7,10 @@ use std::sync::Arc;
 
 use actix_files::NamedFile;
 use actix_session::{
-    config::PersistentSession, storage::CookieSessionStore, SessionMiddleware, SessionExt,
+    config::PersistentSession,
+    storage::CookieSessionStore,
+    SessionMiddleware,
+    SessionExt,
 };
 use actix_web::{
     cookie::{self, Key},
@@ -19,12 +22,9 @@ use actix_web::{
 };
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
+
 use chrono::prelude::*;
 use log::LevelFilter;
-use rustls::crypto::{CryptoProvider, aws_lc_rs as provider};
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use rustls::server::WebPkiClientVerifier;
-use rustls::{self};
 use serde::Deserialize;
 
 const PROTECTED_HEADERS: &[&str] = &[
@@ -114,7 +114,6 @@ async fn newcook(
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
     let id = info.fage;
-
     if id > 20 {
         if state.session.enabled {
             let session = req.get_session();
@@ -132,7 +131,6 @@ async fn newcook(
 async fn index(req: HttpRequest, state: web::Data<Arc<AppState>>) -> actix_web::Result<NamedFile> {
     if state.session.enabled {
         let session = req.get_session();
-
         if let Ok(Some(count)) = session.get::<i32>("counter") {
             let _ = session.insert("counter", count + 1);
             return open_configured_file(&state.static_dir, &state.pages.index_returning_visit)
@@ -150,7 +148,6 @@ async fn static_with_rewrites(
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
     let request_path = req.path();
-
     let rewritten = state
         .rewrites
         .get(request_path)
@@ -190,7 +187,6 @@ fn path_matches_page(path: &str, page: &str) -> bool {
 
 fn normalize_url_like(input: &str) -> String {
     let trimmed = input.trim();
-
     if trimmed.is_empty() || trimmed == "/" {
         return "/".to_string();
     }
@@ -211,7 +207,6 @@ fn normalize_url_like(input: &str) -> String {
 fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
     let trimmed = input.trim_start_matches('/');
     let path = Path::new(trimmed);
-
     let mut clean = PathBuf::new();
     for component in path.components() {
         match component {
@@ -239,7 +234,6 @@ async fn open_path_under_static_root(
         .ok_or_else(|| actix_web::error::ErrorBadRequest("invalid configured path"))?;
 
     let full_path = static_dir.join(safe_rel_path);
-
     if full_path.is_file() {
         return NamedFile::open_async(full_path)
             .await
@@ -269,7 +263,6 @@ fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
 fn load_private_key(filename: &str) -> PrivateKeyDer<'static> {
     let keyfile = File::open(filename).expect("cannot open private key file");
     let mut reader = BufReader::new(keyfile);
-
     loop {
         match rustls_pemfile::read_one(&mut reader).expect("cannot parse private key .pem file") {
             Some(rustls_pemfile::Item::Pkcs1Key(key)) => return key.into(),
@@ -305,7 +298,6 @@ async fn main() -> eyre::Result<()> {
 
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
     let config: Config = serde_yml::from_reader(config_file).expect("failed to read morph.yaml");
-
     let skipped: Vec<String> = config
         .web
         .headers
@@ -350,7 +342,6 @@ async fn main() -> eyre::Result<()> {
     let session_ttl_hours = state.session.ttl_hours;
     let secure_cookie = state.session.secure_cookie;
     let workers = config.workers.unwrap_or(2);
-
     let mut server = HttpServer::new(move || {
         let mut custom_default_headers = middleware::DefaultHeaders::new();
         for (name, value) in &custom_headers {
@@ -392,7 +383,6 @@ async fn main() -> eyre::Result<()> {
 
     for listener in &config.listeners {
         let addr = format!("0.0.0.0:{}", listener.port);
-
         match &listener.tls {
             Some(tls) => {
                 let cert = load_certs(&tls.cert_path);
@@ -439,7 +429,6 @@ async fn main() -> eyre::Result<()> {
     }
 
     server.run().await?;
-
     let stopi = Utc::now().to_rfc3339();
     log::info!(
         "{{\"event\":\"server_shutdown_arrived\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
