@@ -117,6 +117,14 @@ Kiabluejay can also be compiled from source or installed from precompiled releas
 
 Kiabluejay works well in Kubernetes, too, just specify the `morph.yaml` config and file mounts in the manifest, etc etc.
 
+#### Kiabluejay on OpenBSD
+
+There is a version of Kiabluejay that integrates with Pledge and Unveil security:
+
+https://github.com/jpegleg/paludification_toad/tree/main/morphobsd
+
+The OpenBSD version starts at 0.1.700 and uses this project as an upstream source.
+
 
 ## Project promises
 
