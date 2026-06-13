@@ -214,6 +214,7 @@ https://github.com/jpegleg/paludification_toad/tree/main/morphobsd
 
 The OpenBSD version starts at 0.1.700 (based on the 0.1.7 version) and uses this project as an upstream source.
 
+The OpenBSD version does not use aws-lc-rs, and instead uses (libressl) via openssl integration for the TLS cryptography.
 
 ## Project promises
 
