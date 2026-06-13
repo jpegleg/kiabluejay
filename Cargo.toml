@@ -1,6 +1,6 @@
 [package]
 name = "kiabluejay"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2024"
 authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
 license = "MIT"
@@ -16,13 +16,13 @@ actix-web = { version = "4.13", features = ["rustls", "rustls-0_23"] }
 rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
 rustls-webpki = { version = "0.102.8", features = ["aws_lc_rs"] }
 rustls-pemfile = "2"
-aws-lc-rs = { version = "1.16", features = ["ring-sig-verify", "unstable"] }
+aws-lc-rs = { version = "1.17", features = ["ring-sig-verify", "unstable"] }
 actix-web-lab = "0.17"
 actix-files = "0.6"
 log = "0.4"
 env_logger = "0.11"
 eyre = { version = "0.6", default-features = false, features = ["auto-install", "track-caller"] }
-tokio = { version = "1.52.1", features = ["time", "rt", "macros"] }
+tokio = { version = "1.52.3", features = ["time", "rt", "macros"] }
 chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
