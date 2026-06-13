@@ -22,7 +22,10 @@ use actix_web::{
 };
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
-
+use rustls::crypto::{CryptoProvider, aws_lc_rs as provider};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::server::WebPkiClientVerifier;
+use rustls::{self};
 use chrono::prelude::*;
 use log::LevelFilter;
 use serde::Deserialize;
