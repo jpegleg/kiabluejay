@@ -22,6 +22,7 @@ Kiabluejay is a TLS and security focused server, HTTP listeners on any port will
 
 The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly.
 
+
 ```
 workers: 1
 
@@ -60,7 +61,59 @@ listeners:
       key_path: /opt/morpho/key.pem
   - port: 80
 ```
-The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55.
+
+As of version 0.2.0 we can also make specific headers or specific headers with specific values required to access the /session context that issues cookies.
+
+
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '1200'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: true
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+    ttl_hours: 2
+    value: 20
+    secure_cookie: true
+    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
+    required:
+      header:
+        name: "wesetthisforreasons"
+        value: "flavoroftheweek"
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+```
+
+The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55. If we have "required" with a "header" configured, the configured header name and/or header name with a specific value must be present in the request to `/session`, otherwise the session is denied with HTTP 403. This header feature can be used as a layer to slow down crawlers, bots, and attackers that are trying to access protected content in some unauthorized way. If only the header name is configured, then the check is for the existence of that header, no matter what the value is set to. If we add a configured value, then that header name with that value must be used to access `/session`.
+
+Javascript can set the required header in the frontend, but then of course anyone who looks at the frontend can see the value required, so that idea isn't a strong security protection at all.
+But even with such an example, bots and crawlers are likely going to not take that step, unless they are configured to study the frontend code and populate requests in the same way before trying.
+
+The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file.</b>
