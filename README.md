@@ -4,7 +4,7 @@
 
 Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as simple session cookies.
 
-The use of the cookies is optional, but they are an available content age gate (age 21) feature, that could be used for some other purposes, too. 
+The use of the cookies is optional, but they are an available configurable content age gate feature, that could be used for some other purposes, too. The "session" feature enables secure cookies, regular cookies, required headers to get cookies, and protected content that requires a cookie to access.
 
 Some headers are not configurable and required, set automatically by kiabluejay for security reasons:
 
@@ -20,16 +20,13 @@ Configure an Actix async IO server for one or more listeners for a single set of
 
 Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443.
 
+The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly.
+
 ```
 workers: 1
 
 web:
   static_dir: /var/www/html/
-  pages:
-    index_first_visit: "index.html"
-    index_returning_visit: "index2.html"
-    session_age_gt_20: "index2.html"
-    session_age_lte_20: "index3.html"
   rewrites:
     /docs: /docs/index.html
     /about: /about.html
@@ -47,7 +44,15 @@ web:
     strict-transport-security: "max-age=63072000; includeSubDomains; preload"
   session:
     enabled: true
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
     ttl_hours: 2
+    value: 20
+    secure_cookie: true
+    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
 listeners:
   - port: 443
     tls:
@@ -62,7 +67,39 @@ This means that any CSS, javascript, etc must be inside that "index_first_visit"
 
 If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
+Here is a config example that doesn't use the cookies:
 
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '1200'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: false
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+```
+
+<i>Note: In version of kiabluejay prior to v0.2.0, the "pages" section of the config was always required, even if sessions were disabled.</i>
 
 A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
 for the web server to use. The cert.pem is likely the leaf and intermediate. Redirection to TLS and strict transport security are enabled.
@@ -77,8 +114,8 @@ Also see [kiaproxy](https://github.com/jpegleg/kiaproxy) and [kiagateway](https:
 Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiamagpie) which does caching, QUIC, and cert hot-reloading.
 All together they are the kiastack and can handle domain routing, failover, and many different kinds of web serving needs while having a strong security posture and being high performance.
 
-Kiamagpie has more features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
-Kiabluejay is focused speed and security, cookie enablement for simple number logic in the web forms, and hot content reloading (not hot key and cert reloading).
+Kiamagpie has different features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
+Kiabluejay is focused speed and security, cookie session enablement, and hot content reloading (not hot key and cert reloading).
 Both have configurable redirects, have JSON event logs, and are multi-listener. The kiamagpie event logs are more comprehensive, while kiabluejay does have some non-JSON output for some
 error conditions and is only tracking JSON events at the HTTP level, where as kiamagpie tracks events at the TCP level.
 
@@ -123,7 +160,7 @@ There is a version of Kiabluejay that integrates with Pledge and Unveil security
 
 https://github.com/jpegleg/paludification_toad/tree/main/morphobsd
 
-The OpenBSD version starts at 0.1.700 and uses this project as an upstream source.
+The OpenBSD version starts at 0.1.700 (based on the 0.1.7 version) and uses this project as an upstream source.
 
 
 ## Project promises
