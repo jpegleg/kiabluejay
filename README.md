@@ -108,10 +108,7 @@ listeners:
   - port: 80
 ```
 
-The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55. If we have "required" with a "header" configured, the configured header name and/or header name with a specific value must be present in the request to `/session`, otherwise the session is denied with HTTP 403. This header feature can be used as a layer to slow down crawlers, bots, and attackers that are trying to access protected content in some unauthorized way. If only the header name is configured, then the check is for the existence of that header, no matter what the value is set to. If we add a configured value, then that header name with that value must be used to access `/session`.
-
-Javascript can set the required header in the frontend, but then of course anyone who looks at the frontend can see the value required, so that idea isn't a strong security protection at all.
-But even with such an example, bots and crawlers are likely going to not take that step, unless they are configured to study the frontend code and populate requests in the same way before trying.
+The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55. If we have "required" with a "header" configured, the configured header name and/or header name with a specific value must be present in the request to `/session`, otherwise the session is denied with HTTP 403. This header feature can be used as a layer to slow down crawlers, bots, and those attempting to access protected content. If only the header name is configured, then the check is for the existence of that header, no matter what the value is set to. If we add a configured value, then that header name with that value must be used to access `/session`.
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
