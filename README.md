@@ -4,7 +4,7 @@
 
 Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as simple session cookies.
 
-The use of the cookies is optional, but they are an available configurable content age gate feature, that could be used for some other purposes, too. The "session" feature enables secure cookies, regular cookies, required headers to get cookies, and protected content that requires a cookie to access.
+The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, required headers to get cookies, and protected content that requires a cookie to access.
 
 Some headers are not configurable and required, set automatically by kiabluejay for security reasons:
 
@@ -18,9 +18,11 @@ Any other headers can be set via the `morph.yaml` headers section. See the examp
 
 Configure an Actix async IO server for one or more listeners for a single set of web files by using the `morph.yaml` file.
 
-Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443.
+Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443. Any port can be used and configured as a TLS endpoint.
 
-The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly.
+The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly, enabling secure cookies, header requirements for getting a cookie, and a configurable integer "value". This "value" integer is the value below what is required for `/session?fage=value` to issue a cookie. The max value for `fage` is 32767.
+
+Here is an example config that enables many secure defaults regarding content security policy and strict transport security, and uses the session features.
 
 
 ```
@@ -62,7 +64,7 @@ listeners:
   - port: 80
 ```
 
-As of version 0.2.0 we can also make specific headers or specific headers with specific values required to access the /session context that issues cookies.
+As of version 0.2.0 we can also make specific headers or specific headers with specific values required to access the `/session` context that issues cookies.
 
 
 ```
@@ -117,7 +119,7 @@ This means that any CSS, javascript, etc must be inside that "index_first_visit"
 
 If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
-Here is a config example that doesn't use the cookies:
+Here is a config example that doesn't use the session cookie features:
 
 ```
 workers: 1
