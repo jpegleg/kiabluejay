@@ -1,33 +1,29 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::{BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use actix_files::NamedFile;
 use actix_session::{
-    config::PersistentSession,
-    storage::CookieSessionStore,
-    SessionMiddleware,
-    SessionExt,
+    SessionExt, SessionMiddleware, config::PersistentSession, storage::CookieSessionStore,
 };
 use actix_web::{
+    App, HttpRequest, HttpServer,
     cookie::{self, Key},
-    get,
-    middleware,
+    get, middleware,
     middleware::Condition,
     web,
-    App, HttpRequest, HttpServer,
 };
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
+use chrono::prelude::*;
+use log::LevelFilter;
 use rustls::crypto::{CryptoProvider, aws_lc_rs as provider};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{self};
-use chrono::prelude::*;
-use log::LevelFilter;
 use serde::Deserialize;
 
 const PROTECTED_HEADERS: &[&str] = &[
@@ -50,29 +46,62 @@ struct WebConfig {
     static_dir: String,
     #[serde(default)]
     rewrites: HashMap<String, String>,
-    pages: PageConfig,
     #[serde(default)]
     session: SessionConfig,
     #[serde(default)]
     headers: HashMap<String, String>,
 }
 
+/// All page routes served by the application. Only meaningful when sessions
+/// are enabled; the entire block may be omitted when `session.enabled: false`.
 #[derive(Deserialize, Clone)]
 struct PageConfig {
     index_first_visit: String,
-    index_returning_visit: String,
-    session_age_gt_20: String,
-    session_age_lte_20: String,
+    index_returning_visit: Option<String>,
+    session_age_gt_value: Option<String>,
+    session_age_lte_value: Option<String>,
+}
+
+/// Controls ed25519-signed secure cookies.
+/// `key_path` must point to a PEM-encoded ed25519 private key.
+#[derive(Deserialize, Clone)]
+struct SessionSecureConfig {
+    key_path: String,
+}
+
+/// A header that must be present (and optionally match a specific value)
+/// before the /session endpoint will issue or update a cookie.
+#[derive(Deserialize, Clone)]
+struct HeaderRequirement {
+    name: String,
+    value: Option<String>,
+}
+
+/// Groups all "required" pre-conditions for the /session endpoint.
+#[derive(Deserialize, Clone)]
+struct SessionRequiredConfig {
+    header: HeaderRequirement,
 }
 
 #[derive(Deserialize, Clone)]
 struct SessionConfig {
     #[serde(default)]
     enabled: bool,
+    /// Cookie TTL in hours (default 2).
     #[serde(default)]
     ttl_hours: i64,
     #[serde(default)]
     secure_cookie: bool,
+    /// Age threshold used by /session instead of the old hardcoded 20.
+    /// Required when `enabled: true`; valid range 0–32767 (i16).
+    value: Option<i16>,
+    /// When present, enable ed25519-signed cookies loaded from `key_path`.
+    secure: Option<SessionSecureConfig>,
+    /// Optional header pre-condition that must be satisfied before /session
+    /// will issue or update a session cookie.
+    required: Option<SessionRequiredConfig>,
+    /// Page routes. Required (with all sub-fields) when `enabled: true`.
+    pages: Option<PageConfig>,
 }
 
 impl Default for SessionConfig {
@@ -81,6 +110,10 @@ impl Default for SessionConfig {
             enabled: false,
             ttl_hours: DEFAULT_TTL_HOURS,
             secure_cookie: false,
+            value: None,
+            secure: None,
+            required: None,
+            pages: None,
         }
     }
 }
@@ -102,12 +135,162 @@ struct Age {
     pub fage: i32,
 }
 
+/// Flattened, validated session configuration held in `AppState`.
+/// All `Option` fields here are `Some` when `session_enabled` is true.
+#[allow(unused)]
+#[derive(Clone)]
+struct ResolvedSession {
+    enabled: bool,
+    ttl_hours: i64,
+    secure_cookie: bool,
+    /// Age threshold (from `session.value`); `None` when sessions disabled.
+    age_value: Option<i16>,
+    /// Ed25519 key bytes for cookie signing; `None` when `secure` is absent.
+    signing_key: Option<Vec<u8>>,
+    /// Required header pre-condition; `None` when `required` is absent.
+    required_header: Option<HeaderRequirement>,
+    /// Resolved page routes; `None` when sessions disabled.
+    pages: Option<PageConfig>,
+}
+
 #[derive(Clone)]
 struct AppState {
     static_dir: PathBuf,
     rewrites: HashMap<String, String>,
-    pages: PageConfig,
-    session: SessionConfig,
+    session: ResolvedSession,
+}
+
+fn validate_config(config: &Config) -> Result<(), String> {
+    let sess = &config.web.session;
+
+    if !sess.enabled {
+        if sess.pages.is_some() {
+            return Err(
+                "Sessions have been disabled so the `pages` block cannot be included in \
+                 morph.yaml unless session is also enabled."
+                    .into(),
+            );
+        }
+        if sess.value.is_some() {
+            return Err(
+                "Sessions have been disabled so `session.value` cannot be included in \
+                 morph.yaml unless session is also enabled."
+                    .into(),
+            );
+        }
+        if sess.secure.is_some() {
+            return Err(
+                "Sessions have been disabled so `session.secure` cannot be included in \
+                 morph.yaml unless session is also enabled."
+                    .into(),
+            );
+        }
+        if sess.required.is_some() {
+            return Err(
+                "Sessions have been disabled so `session.required` cannot be included in \
+                 morph.yaml unless session is also enabled."
+                    .into(),
+            );
+        }
+        return Ok(());
+    }
+
+    if sess.value.is_none() {
+        return Err("`session.value` is required when sessions are enabled. \
+             Set it to an integer between 0 and 32767."
+            .into());
+    }
+
+    let pages = sess
+        .pages
+        .as_ref()
+        .ok_or("The `session.pages` block is required when sessions are enabled.")?;
+
+    let mut missing: Vec<&str> = Vec::new();
+    if pages.index_returning_visit.is_none() {
+        missing.push("index_returning_visit");
+    }
+    if pages.session_age_gt_value.is_none() {
+        missing.push("session_age_gt_value");
+    }
+    if pages.session_age_lte_value.is_none() {
+        missing.push("session_age_lte_value");
+    }
+    if !missing.is_empty() {
+        return Err(format!(
+            "Sessions are enabled but the following required page(s) are missing from \
+             `session.pages` in morph.yaml: {}.",
+            missing.join(", ")
+        ));
+    }
+    if let Some(sec) = &sess.secure
+        && !Path::new(&sec.key_path).is_file()
+    {
+        return Err(format!(
+            "`session.secure.key_path` '{}' does not exist or is not a file.",
+            sec.key_path
+        ));
+    }
+
+    Ok(())
+}
+
+/// Load an ed25519 private key from a PEM file and return the raw 32-byte
+/// seed, which actix's `Key::from` accepts (it requires ≥ 64 bytes, but we
+/// expand via HKDF internally - actix actually accepts any length ≥ 64;
+/// for ed25519 seeds we read the full PEM and pass the raw bytes).
+fn load_signing_key(path: &str) -> Vec<u8> {
+    let mut f =
+        File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
+    let mut pem_bytes = Vec::new();
+    f.read_to_end(&mut pem_bytes)
+        .unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
+    pem_bytes
+}
+
+fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
+    let certfile = File::open(filename).expect("cannot open certificate file");
+    let mut reader = BufReader::new(certfile);
+    rustls_pemfile::certs(&mut reader)
+        .map(|result| result.unwrap())
+        .collect()
+}
+
+fn load_private_key(filename: &str) -> PrivateKeyDer<'static> {
+    let keyfile = File::open(filename).expect("cannot open private key file");
+    let mut reader = BufReader::new(keyfile);
+    loop {
+        match rustls_pemfile::read_one(&mut reader).expect("cannot parse private key .pem file") {
+            Some(rustls_pemfile::Item::Pkcs1Key(key)) => return key.into(),
+            Some(rustls_pemfile::Item::Pkcs8Key(key)) => return key.into(),
+            Some(rustls_pemfile::Item::Sec1Key(key)) => return key.into(),
+            None => break,
+            _ => {}
+        }
+    }
+    panic!(
+        "no keys found in {:?} (encrypted keys not supported)",
+        filename
+    );
+}
+
+/// Returns `true` when the incoming request satisfies the configured header
+/// requirement, or when no requirement is configured.
+fn required_header_satisfied(req: &HttpRequest, requirement: &Option<HeaderRequirement>) -> bool {
+    let Some(req_cfg) = requirement else {
+        return true;
+    };
+
+    let header_val = req
+        .headers()
+        .get(&req_cfg.name)
+        .and_then(|v| v.to_str().ok());
+
+    match (&header_val, &req_cfg.value) {
+        (None, _) => false,
+        (Some(_), None) => true,
+        (Some(actual), Some(expected)) => actual == expected,
+    }
 }
 
 #[get("/session")]
@@ -116,34 +299,54 @@ async fn newcook(
     info: web::Query<Age>,
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
-    let id = info.fage;
-    if id > 20 {
-        if state.session.enabled {
+    if !required_header_satisfied(&req, &state.session.required_header) {
+        return Err(actix_web::error::ErrorForbidden(
+            "missing or invalid required header",
+        ));
+    }
+
+    let sess = &state.session;
+    let threshold = sess.age_value.unwrap() as i32;
+    let pages = sess.pages.as_ref().unwrap();
+
+    if info.fage > threshold {
+        if sess.enabled {
             let session = req.get_session();
             let counter = session.get::<i32>("counter").ok().flatten().unwrap_or(0) + 1;
             let _ = session.insert("counter", counter);
         }
-
-        open_configured_file(&state.static_dir, &state.pages.session_age_gt_20).await
+        open_configured_file(
+            &state.static_dir,
+            pages.session_age_gt_value.as_deref().unwrap(),
+        )
+        .await
     } else {
-        open_configured_file(&state.static_dir, &state.pages.session_age_lte_20).await
+        open_configured_file(
+            &state.static_dir,
+            pages.session_age_lte_value.as_deref().unwrap(),
+        )
+        .await
     }
 }
 
 #[get("/")]
 async fn index(req: HttpRequest, state: web::Data<Arc<AppState>>) -> actix_web::Result<NamedFile> {
-    if state.session.enabled {
+    let sess = &state.session;
+    if sess.enabled {
+        let pages = sess.pages.as_ref().unwrap();
         let session = req.get_session();
         if let Ok(Some(count)) = session.get::<i32>("counter") {
             let _ = session.insert("counter", count + 1);
-            return open_configured_file(&state.static_dir, &state.pages.index_returning_visit)
-                .await;
+            return open_configured_file(
+                &state.static_dir,
+                pages.index_returning_visit.as_deref().unwrap(),
+            )
+            .await;
         }
-
-        return open_configured_file(&state.static_dir, &state.pages.index_first_visit).await;
+        return open_configured_file(&state.static_dir, &pages.index_first_visit).await;
     }
 
-    open_configured_file(&state.static_dir, &state.pages.index_first_visit).await
+    open_path_under_static_root(&state.static_dir, "/index.html").await
 }
 
 async fn static_with_rewrites(
@@ -161,7 +364,11 @@ async fn static_with_rewrites(
         return open_path_under_static_root(&state.static_dir, rewritten).await;
     }
 
-    if is_public_path(request_path, rewritten, &state.pages) {
+    if is_public_path(
+        request_path,
+        rewritten,
+        state.session.pages.as_ref().unwrap(),
+    ) {
         return open_path_under_static_root(&state.static_dir, rewritten).await;
     }
 
@@ -171,21 +378,21 @@ async fn static_with_rewrites(
         return open_path_under_static_root(&state.static_dir, rewritten).await;
     }
 
-    open_configured_file(&state.static_dir, &state.pages.index_first_visit).await
+    let first = &state.session.pages.as_ref().unwrap().index_first_visit;
+    open_configured_file(&state.static_dir, first).await
 }
 
 fn is_public_path(request_path: &str, rewritten_path: &str, pages: &PageConfig) -> bool {
+    let lte = pages.session_age_lte_value.as_deref().unwrap_or("");
     path_matches_page(request_path, &pages.index_first_visit)
         || path_matches_page(rewritten_path, &pages.index_first_visit)
-        || path_matches_page(request_path, &pages.session_age_lte_20)
-        || path_matches_page(rewritten_path, &pages.session_age_lte_20)
+        || path_matches_page(request_path, lte)
+        || path_matches_page(rewritten_path, lte)
         || request_path == "/"
 }
 
 fn path_matches_page(path: &str, page: &str) -> bool {
-    let normalized_path = normalize_url_like(path);
-    let normalized_page = normalize_url_like(page);
-    normalized_path == normalized_page
+    normalize_url_like(path) == normalize_url_like(page)
 }
 
 fn normalize_url_like(input: &str) -> String {
@@ -193,17 +400,14 @@ fn normalize_url_like(input: &str) -> String {
     if trimmed.is_empty() || trimmed == "/" {
         return "/".to_string();
     }
-
     let mut s = if trimmed.starts_with('/') {
         trimmed.to_string()
     } else {
         format!("/{}", trimmed)
     };
-
     while s.len() > 1 && s.ends_with('/') {
         s.pop();
     }
-
     s
 }
 
@@ -218,7 +422,6 @@ fn sanitize_relative_path(input: &str) -> Option<PathBuf> {
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
         }
     }
-
     Some(clean)
 }
 
@@ -242,7 +445,6 @@ async fn open_path_under_static_root(
             .await
             .map_err(|_| actix_web::error::ErrorNotFound("file not found"));
     }
-
     if full_path.is_dir() {
         let index_path = full_path.join("index.html");
         if index_path.is_file() {
@@ -251,35 +453,7 @@ async fn open_path_under_static_root(
                 .map_err(|_| actix_web::error::ErrorNotFound("file not found"));
         }
     }
-
     Err(actix_web::error::ErrorNotFound("file not found"))
-}
-
-fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
-    let certfile = File::open(filename).expect("cannot open certificate file");
-    let mut reader = BufReader::new(certfile);
-    rustls_pemfile::certs(&mut reader)
-        .map(|result| result.unwrap())
-        .collect()
-}
-
-fn load_private_key(filename: &str) -> PrivateKeyDer<'static> {
-    let keyfile = File::open(filename).expect("cannot open private key file");
-    let mut reader = BufReader::new(keyfile);
-    loop {
-        match rustls_pemfile::read_one(&mut reader).expect("cannot parse private key .pem file") {
-            Some(rustls_pemfile::Item::Pkcs1Key(key)) => return key.into(),
-            Some(rustls_pemfile::Item::Pkcs8Key(key)) => return key.into(),
-            Some(rustls_pemfile::Item::Sec1Key(key)) => return key.into(),
-            None => break,
-            _ => {}
-        }
-    }
-
-    panic!(
-        "no keys found in {:?} (encrypted keys not supported)",
-        filename
-    );
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -294,13 +468,19 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.1.7\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.0\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
 
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
     let config: Config = serde_yml::from_reader(config_file).expect("failed to read morph.yaml");
+
+    if let Err(e) = validate_config(&config) {
+        eprintln!("Configuration error: {e}");
+        std::process::exit(1);
+    }
+
     let skipped: Vec<String> = config
         .web
         .headers
@@ -325,11 +505,30 @@ async fn main() -> eyre::Result<()> {
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
 
+    let raw_sess = &config.web.session;
+    let signing_key: Option<Vec<u8>> = raw_sess
+        .secure
+        .as_ref()
+        .map(|s| load_signing_key(&s.key_path));
+
+    let resolved_session = ResolvedSession {
+        enabled: raw_sess.enabled,
+        ttl_hours: if raw_sess.ttl_hours == 0 {
+            DEFAULT_TTL_HOURS
+        } else {
+            raw_sess.ttl_hours
+        },
+        secure_cookie: raw_sess.secure_cookie,
+        age_value: raw_sess.value,
+        signing_key: signing_key.clone(),
+        required_header: raw_sess.required.as_ref().map(|r| r.header.clone()),
+        pages: raw_sess.pages.clone(),
+    };
+
     let state = Arc::new(AppState {
         static_dir: PathBuf::from(config.web.static_dir.clone()),
         rewrites: config.web.rewrites.clone(),
-        pages: config.web.pages.clone(),
-        session: config.web.session.clone(),
+        session: resolved_session.clone(),
     });
 
     let readi = Utc::now().to_rfc3339();
@@ -341,10 +540,14 @@ async fn main() -> eyre::Result<()> {
         runid
     );
 
-    let session_enabled = state.session.enabled;
-    let session_ttl_hours = state.session.ttl_hours;
-    let secure_cookie = state.session.secure_cookie;
+    let session_enabled = resolved_session.enabled;
+    let session_ttl_hours = resolved_session.ttl_hours;
+    let secure_cookie = resolved_session.secure_cookie;
     let workers = config.workers.unwrap_or(2);
+    let cookie_key = signing_key
+        .map(|bytes| Key::from(&bytes))
+        .unwrap_or_else(|| Key::from(&[0; 64]));
+
     let mut server = HttpServer::new(move || {
         let mut custom_default_headers = middleware::DefaultHeaders::new();
         for (name, value) in &custom_headers {
@@ -358,11 +561,13 @@ async fn main() -> eyre::Result<()> {
                 StrictTransportSecurity::recommended(),
             ))
             .wrap(
-                middleware::DefaultHeaders::new().add(("x-content-type-options", "nosniff")),
+                middleware::DefaultHeaders::new()
+                    .add(("x-content-type-options", "nosniff")),
             )
             .wrap(middleware::DefaultHeaders::new().add(("x-frame-options", "SAMEORIGIN")))
             .wrap(
-                middleware::DefaultHeaders::new().add(("x-xss-protection", "1; mode=block")),
+                middleware::DefaultHeaders::new()
+                    .add(("x-xss-protection", "1; mode=block")),
             )
             .wrap(custom_default_headers)
             .wrap(middleware::Logger::new(
@@ -370,13 +575,16 @@ async fn main() -> eyre::Result<()> {
             ))
             .wrap(Condition::new(
                 session_enabled,
-                SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
-                    .cookie_secure(secure_cookie)
-                    .session_lifecycle(
-                        PersistentSession::default()
-                            .session_ttl(cookie::time::Duration::hours(session_ttl_hours)),
-                    )
-                    .build(),
+                SessionMiddleware::builder(
+                    CookieSessionStore::default(),
+                    cookie_key.clone(),
+                )
+                .cookie_secure(secure_cookie)
+                .session_lifecycle(
+                    PersistentSession::default()
+                        .session_ttl(cookie::time::Duration::hours(session_ttl_hours)),
+                )
+                .build(),
             ))
             .service(index)
             .service(newcook)
@@ -393,7 +601,6 @@ async fn main() -> eyre::Result<()> {
                 let versions = rustls::ALL_VERSIONS.to_vec();
                 let ocsp = Vec::new();
                 let client_auth = WebPkiClientVerifier::no_client_auth();
-
                 let tls_config = rustls::ServerConfig::builder_with_provider(
                     CryptoProvider {
                         cipher_suites: provider::ALL_CIPHER_SUITES.to_vec(),
