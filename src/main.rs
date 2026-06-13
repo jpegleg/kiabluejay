@@ -52,8 +52,6 @@ struct WebConfig {
     headers: HashMap<String, String>,
 }
 
-/// All page routes served by the application. Only meaningful when sessions
-/// are enabled; the entire block may be omitted when `session.enabled: false`.
 #[derive(Deserialize, Clone)]
 struct PageConfig {
     index_first_visit: String,
@@ -62,22 +60,17 @@ struct PageConfig {
     session_age_lte_value: Option<String>,
 }
 
-/// Controls ed25519-signed secure cookies.
-/// `key_path` must point to a PEM-encoded ed25519 private key.
 #[derive(Deserialize, Clone)]
 struct SessionSecureConfig {
     key_path: String,
 }
 
-/// A header that must be present (and optionally match a specific value)
-/// before the /session endpoint will issue or update a cookie.
 #[derive(Deserialize, Clone)]
 struct HeaderRequirement {
     name: String,
     value: Option<String>,
 }
 
-/// Groups all "required" pre-conditions for the /session endpoint.
 #[derive(Deserialize, Clone)]
 struct SessionRequiredConfig {
     header: HeaderRequirement,
@@ -87,20 +80,13 @@ struct SessionRequiredConfig {
 struct SessionConfig {
     #[serde(default)]
     enabled: bool,
-    /// Cookie TTL in hours (default 2).
     #[serde(default)]
     ttl_hours: i64,
     #[serde(default)]
     secure_cookie: bool,
-    /// Age threshold used by /session instead of the old hardcoded 20.
-    /// Required when `enabled: true`; valid range 0–32767 (i16).
     value: Option<i16>,
-    /// When present, enable ed25519-signed cookies loaded from `key_path`.
     secure: Option<SessionSecureConfig>,
-    /// Optional header pre-condition that must be satisfied before /session
-    /// will issue or update a session cookie.
     required: Option<SessionRequiredConfig>,
-    /// Page routes. Required (with all sub-fields) when `enabled: true`.
     pages: Option<PageConfig>,
 }
 
@@ -135,21 +121,15 @@ struct Age {
     pub fage: i32,
 }
 
-/// Flattened, validated session configuration held in `AppState`.
-/// All `Option` fields here are `Some` when `session_enabled` is true.
 #[allow(unused)]
 #[derive(Clone)]
 struct ResolvedSession {
     enabled: bool,
     ttl_hours: i64,
     secure_cookie: bool,
-    /// Age threshold (from `session.value`); `None` when sessions disabled.
     age_value: Option<i16>,
-    /// Ed25519 key bytes for cookie signing; `None` when `secure` is absent.
     signing_key: Option<Vec<u8>>,
-    /// Required header pre-condition; `None` when `required` is absent.
     required_header: Option<HeaderRequirement>,
-    /// Resolved page routes; `None` when sessions disabled.
     pages: Option<PageConfig>,
 }
 
@@ -235,10 +215,6 @@ fn validate_config(config: &Config) -> Result<(), String> {
     Ok(())
 }
 
-/// Load an ed25519 private key from a PEM file and return the raw 32-byte
-/// seed, which actix's `Key::from` accepts (it requires ≥ 64 bytes, but we
-/// expand via HKDF internally - actix actually accepts any length ≥ 64;
-/// for ed25519 seeds we read the full PEM and pass the raw bytes).
 fn load_signing_key(path: &str) -> Vec<u8> {
     let mut f =
         File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
@@ -274,8 +250,6 @@ fn load_private_key(filename: &str) -> PrivateKeyDer<'static> {
     );
 }
 
-/// Returns `true` when the incoming request satisfies the configured header
-/// requirement, or when no requirement is configured.
 fn required_header_satisfied(req: &HttpRequest, requirement: &Option<HeaderRequirement>) -> bool {
     let Some(req_cfg) = requirement else {
         return true;
