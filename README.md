@@ -22,7 +22,11 @@ Configure an Actix async IO server for one or more listeners for a single set of
 
 ### This is the "The Normal Style" that is recommended for general use
 
-This is a standard reference config. Customize the rewrites and directories (folders) to whatever is needed.
+This is a standard reference config. Your javascript, html, css, images, videos, and so on goes within "static_dir" directory (folder), which might be
+mounted into the container, added into the container, or used directly from the filesystem. When running in a container, we can ConfigMap all of the web content,
+or mount it from whatever storage system is needed, such as the local file system or a remote distributed storage system.
+
+Customize the rewrites and directories (folders) to whatever is needed.
 Adjust the content-security-policy to match the needs of the web code or remove it. Tune the cache-control
 to meet the needs of the site, this reference enables visitor browsers to cache for 600 seconds.
 
@@ -348,7 +352,11 @@ In linux we are more likely to use the OCI container style, although running via
 
 The OpenBSD style of use has examples in the [paludification_toad project](https://github.com/jpegleg/paludification_toad/) which diverge from the linux version (container versions) with additional OpenBSD security integrations and different cryptographic software for TLS.
 
-<b>Generally we have kiagateway and redirectrix as internet facing services. The kiagateway routes domain specific traffic to kiaproxy instances which route traffic to kiabluejay instances.</b>
+<b>Generally we have kiagateway as internet facing first hop. The kiagateway routes domain specific traffic to kiaproxy instances which route traffic to kiabluejay instances.
+</br>
+Redirectrix is added as internet facing if we want to have a separate ACME HTTP-01 integration for PKI automation. Kiamagpie might be added as internet facing if we need to support QUIC protocol.
+We'll generally want to use kiabluejay over kiamagpie, but kiamagpie has uses too.
+</b>
 
 ## Installation
 
@@ -394,6 +402,7 @@ The OpenBSD version starts at 0.1.700 (based on the 0.1.7 version) and uses this
 The OpenBSD version does not use aws-lc-rs, and instead uses (libressl) via openssl integration for the TLS cryptography.
 
 The OpenBSD fork also has PEM decryption for the TLS identity private key PEM file, via libressl (openssl).
+
 
 ## Project promises
 
