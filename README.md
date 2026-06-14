@@ -18,6 +18,10 @@ Any other headers can be set via the `morph.yaml` headers section. See the examp
 
 Configure an Actix async IO server for one or more listeners for a single set of web files by using the `morph.yaml` file.
 
+## features of kiabluejay: sessions, requirements, and the morph.yaml
+
+The `morph.yaml` file is read from the working directory of the kiabluejay process, the `$(pwd)`. This enables multiple processes to `cd` into different directories and have different `morph.yaml` config files. This technique is used more heavily by the OpenBSD fork. The container style kiabluejay doesn't need this since the filesystem is that mounted within the container.
+
 Kiabluejay is a TLS and security focused server, HTTP listeners on any port will try to redirect to HTTPS 443. Any port can be used and configured as a TLS endpoint.
 
 The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly, enabling secure cookies, header requirements for getting a cookie, and a configurable integer "value". This "value" integer is the value below what is required for `/session?fage=value` to issue a cookie. The max value for `fage` is 32767.
@@ -110,9 +114,63 @@ listeners:
   - port: 80
 ```
 
+With version `0.2.1` and onward, we also have "ipv4" and "ipv6" options for "required", to limit access based on IP to `/session` cookies.
+
+While this isn't how a regular public website should be, if the system is designed so that specific IP addresses are used, then we can
+configure these as required in kiabluejay, as of v0.2.1.
+
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '1200'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: true
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+    ttl_hours: 2
+    value: 20
+    secure_cookie: true
+    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
+    required:
+      header:
+        name: "wesetthisforreasons"
+        value: "flavoroftheweek"
+      ipv4:
+        addresses:
+        - 127.0.0.1
+        - 192.168.1.0/24
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+```
+
 The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55. If we have "required" with a "header" configured, the configured header name and/or header name with a specific value must be present in the request to `/session`, otherwise the session is denied with HTTP 403. This header feature can be used as a layer to slow down crawlers, bots, and those attempting to access protected content. If only the header name is configured, then the check is for the existence of that header, no matter what the value is set to. If we add a configured value, then that header name with that value must be used to access `/session`.
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
+
+The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file.</b>
@@ -215,6 +273,8 @@ https://github.com/jpegleg/paludification_toad/tree/main/morphobsd
 The OpenBSD version starts at 0.1.700 (based on the 0.1.7 version) and uses this project as an upstream source.
 
 The OpenBSD version does not use aws-lc-rs, and instead uses (libressl) via openssl integration for the TLS cryptography.
+
+The OpenBSD fork also has PEM decryption for the TLS identity private key PEM file, via libressl (openssl).
 
 ## Project promises
 
