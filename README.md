@@ -24,7 +24,7 @@ Configure an Actix async IO server for one or more listeners for a single set of
 
 This is a standard reference config. Customize the rewrites and directories (folders) to whatever is needed.
 Adjust the content-security-policy to match the needs of the web code or remove it. Tune the cache-control
-to meet the needs of the site, this reference caches for 600 seconds.
+to meet the needs of the site, this reference enables visitor browsers to cache for 600 seconds.
 
 ```
 workers: 1
@@ -67,6 +67,7 @@ The `rewrites` section enables configurable rewrites.
 
 The `worker` count sets the number of worker threads to spawn during initialization. You might do 1 or 2 workers per vCPU. When in doubt, use 2.
 
+The TLS ciphers are automatically set (via RusTLS), so there is no need to configure them. They are set to optimal secure defaults that get A+ reports. The reference config also has A+ industry standard headers as of June 2026. Headers and TLS change with the industry over time, and kiabluejay intends to keep up with the latest and greatest, within reason. The code is actively maintained as much as time permits.
 
 ## features of kiabluejay: sessions, cookie requirements, and the morph.yaml
 
