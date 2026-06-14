@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
@@ -72,8 +73,20 @@ struct HeaderRequirement {
 }
 
 #[derive(Deserialize, Clone)]
+struct Ipv4Requirement {
+    addresses: Vec<String>,
+}
+
+#[derive(Deserialize, Clone)]
+struct Ipv6Requirement {
+    addresses: Vec<String>,
+}
+
+#[derive(Deserialize, Clone)]
 struct SessionRequiredConfig {
-    header: HeaderRequirement,
+    header: Option<HeaderRequirement>,
+    ipv4: Option<Ipv4Requirement>,
+    ipv6: Option<Ipv6Requirement>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -121,6 +134,110 @@ struct Age {
     pub fage: i32,
 }
 
+#[derive(Clone, Copy)]
+struct Ipv4Cidr {
+    network: u32,
+    prefix_len: u32,
+}
+
+impl Ipv4Cidr {
+    fn parse(s: &str) -> Result<Self, String> {
+        if let Some((addr_part, prefix_part)) = s.split_once('/') {
+            let addr: Ipv4Addr = addr_part
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid IPv4 address '{}' in CIDR '{}'", addr_part, s))?;
+            let prefix_len: u32 = prefix_part
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid prefix length '{}' in CIDR '{}'", prefix_part, s))?;
+            if prefix_len > 32 {
+                return Err(format!("prefix length out of range in CIDR '{}'", s));
+            }
+            let mask = if prefix_len == 0 {
+                0u32
+            } else {
+                u32::MAX << (32 - prefix_len)
+            };
+            let network = u32::from(addr) & mask;
+            Ok(Self {
+                network,
+                prefix_len,
+            })
+        } else {
+            let addr: Ipv4Addr = s
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid IPv4 address '{}'", s))?;
+            Ok(Self {
+                network: u32::from(addr),
+                prefix_len: 32,
+            })
+        }
+    }
+
+    fn contains(&self, addr: Ipv4Addr) -> bool {
+        let mask = if self.prefix_len == 0 {
+            0u32
+        } else {
+            u32::MAX << (32 - self.prefix_len)
+        };
+        (u32::from(addr) & mask) == self.network
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Ipv6Cidr {
+    network: u128,
+    prefix_len: u32,
+}
+
+impl Ipv6Cidr {
+    fn parse(s: &str) -> Result<Self, String> {
+        if let Some((addr_part, prefix_part)) = s.split_once('/') {
+            let addr: Ipv6Addr = addr_part
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid IPv6 address '{}' in CIDR '{}'", addr_part, s))?;
+            let prefix_len: u32 = prefix_part
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid prefix length '{}' in CIDR '{}'", prefix_part, s))?;
+            if prefix_len > 128 {
+                return Err(format!("prefix length out of range in CIDR '{}'", s));
+            }
+            let mask = if prefix_len == 0 {
+                0u128
+            } else {
+                u128::MAX << (128 - prefix_len)
+            };
+            let network = u128::from(addr) & mask;
+            Ok(Self {
+                network,
+                prefix_len,
+            })
+        } else {
+            let addr: Ipv6Addr = s
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid IPv6 address '{}'", s))?;
+            Ok(Self {
+                network: u128::from(addr),
+                prefix_len: 128,
+            })
+        }
+    }
+
+    fn contains(&self, addr: Ipv6Addr) -> bool {
+        let mask = if self.prefix_len == 0 {
+            0u128
+        } else {
+            u128::MAX << (128 - self.prefix_len)
+        };
+        (u128::from(addr) & mask) == self.network
+    }
+}
+
 #[allow(unused)]
 #[derive(Clone)]
 struct ResolvedSession {
@@ -130,6 +247,8 @@ struct ResolvedSession {
     age_value: Option<i16>,
     signing_key: Option<Vec<u8>>,
     required_header: Option<HeaderRequirement>,
+    required_ipv4: Option<Vec<Ipv4Cidr>>,
+    required_ipv6: Option<Vec<Ipv6Cidr>>,
     pages: Option<PageConfig>,
 }
 
@@ -212,6 +331,38 @@ fn validate_config(config: &Config) -> Result<(), String> {
         ));
     }
 
+    if let Some(required) = &sess.required {
+        if let Some(ipv4) = &required.ipv4 {
+            if ipv4.addresses.is_empty() {
+                return Err(
+                    "`session.required.ipv4.addresses` must contain at least one address or \
+                     CIDR range."
+                        .into(),
+                );
+            }
+            for entry in &ipv4.addresses {
+                Ipv4Cidr::parse(entry).map_err(|e| {
+                    format!("invalid entry in `session.required.ipv4.addresses`: {}", e)
+                })?;
+            }
+        }
+
+        if let Some(ipv6) = &required.ipv6 {
+            if ipv6.addresses.is_empty() {
+                return Err(
+                    "`session.required.ipv6.addresses` must contain at least one address or \
+                     CIDR range."
+                        .into(),
+                );
+            }
+            for entry in &ipv6.addresses {
+                Ipv6Cidr::parse(entry).map_err(|e| {
+                    format!("invalid entry in `session.required.ipv6.addresses`: {}", e)
+                })?;
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -267,6 +418,52 @@ fn required_header_satisfied(req: &HttpRequest, requirement: &Option<HeaderRequi
     }
 }
 
+fn required_ip_satisfied(
+    req: &HttpRequest,
+    allowed_v4: &Option<Vec<Ipv4Cidr>>,
+    allowed_v6: &Option<Vec<Ipv6Cidr>>,
+) -> bool {
+    if allowed_v4.is_none() && allowed_v6.is_none() {
+        return true;
+    }
+
+    let peer_addr = match req.peer_addr() {
+        Some(addr) => addr.ip(),
+        None => return false,
+    };
+
+    match peer_addr {
+        IpAddr::V4(v4) => {
+            if let Some(allowed) = allowed_v4
+                && allowed.iter().any(|cidr| cidr.contains(v4))
+            {
+                return true;
+            }
+            if let Some(allowed) = allowed_v6 {
+                let mapped = v4.to_ipv6_mapped();
+                if allowed.iter().any(|cidr| cidr.contains(mapped)) {
+                    return true;
+                }
+            }
+            false
+        }
+        IpAddr::V6(v6) => {
+            if let Some(allowed) = allowed_v6
+                && allowed.iter().any(|cidr| cidr.contains(v6))
+            {
+                return true;
+            }
+            if let Some(allowed) = allowed_v4
+                && let Some(v4) = v6.to_ipv4_mapped()
+                && allowed.iter().any(|cidr| cidr.contains(v4))
+            {
+                return true;
+            }
+            false
+        }
+    }
+}
+
 #[get("/session")]
 async fn newcook(
     req: HttpRequest,
@@ -275,7 +472,17 @@ async fn newcook(
 ) -> actix_web::Result<NamedFile> {
     if !required_header_satisfied(&req, &state.session.required_header) {
         return Err(actix_web::error::ErrorForbidden(
-            "missing or invalid required header",
+            "Forbidden, your request was not authorized.",
+        ));
+    }
+
+    if !required_ip_satisfied(
+        &req,
+        &state.session.required_ipv4,
+        &state.session.required_ipv6,
+    ) {
+        return Err(actix_web::error::ErrorForbidden(
+            "Forbidden, your request was not authorized.",
         ));
     }
 
@@ -442,7 +649,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.0\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.1\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
@@ -485,6 +692,28 @@ async fn main() -> eyre::Result<()> {
         .as_ref()
         .map(|s| load_signing_key(&s.key_path));
 
+    let required_ipv4: Option<Vec<Ipv4Cidr>> = raw_sess
+        .required
+        .as_ref()
+        .and_then(|r| r.ipv4.as_ref())
+        .map(|ipv4| {
+            ipv4.addresses
+                .iter()
+                .map(|s| Ipv4Cidr::parse(s).expect("invalid ipv4 address in morph.yaml"))
+                .collect()
+        });
+
+    let required_ipv6: Option<Vec<Ipv6Cidr>> = raw_sess
+        .required
+        .as_ref()
+        .and_then(|r| r.ipv6.as_ref())
+        .map(|ipv6| {
+            ipv6.addresses
+                .iter()
+                .map(|s| Ipv6Cidr::parse(s).expect("invalid ipv6 address in morph.yaml"))
+                .collect()
+        });
+
     let resolved_session = ResolvedSession {
         enabled: raw_sess.enabled,
         ttl_hours: if raw_sess.ttl_hours == 0 {
@@ -495,7 +724,9 @@ async fn main() -> eyre::Result<()> {
         secure_cookie: raw_sess.secure_cookie,
         age_value: raw_sess.value,
         signing_key: signing_key.clone(),
-        required_header: raw_sess.required.as_ref().map(|r| r.header.clone()),
+        required_header: raw_sess.required.as_ref().and_then(|r| r.header.clone()),
+        required_ipv4,
+        required_ipv6,
         pages: raw_sess.pages.clone(),
     };
 
