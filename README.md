@@ -166,18 +166,100 @@ listeners:
   - port: 80
 ```
 
+#### About the web code, the HTML and javascript and how it can use kiabluejay
+
+The most simple and normal way to use kiabluejay is to serve up a "web root" of files from a "directory" (folder).
+The files can be any javascript, HTML, CSS, images, videos, etc, etc. And kiabluejay has "session" disabled, no restrictions.
+In this case the content is still served up with strong hybrid PQC TLS, enabling transport security and application security features with security headers.
+
+For those that need protected content, there are additional features that can be enabled, but the web code must also work with it.
+
 The index.html could then use `<form action="/session">` and submit session information `?fage=55` to submit an age of 55. If we have "required" with a "header" configured, the configured header name and/or header name with a specific value must be present in the request to `/session`, otherwise the session is denied with HTTP 403. This header feature can be used as a layer to slow down crawlers, bots, and those attempting to access protected content. If only the header name is configured, then the check is for the existence of that header, no matter what the value is set to. If we add a configured value, then that header name with that value must be used to access `/session`.
+
+The web code HTML form can submit a required header like this:
+
+```
+<script>
+document.getElementById('groupidForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var groupIdValue = document.getElementById('groupid').value;
+  var encoder = new TextEncoder();
+  if (encoder.encode(groupIdValue).length > 512) {
+    alert('Group ID must be 512 bytes or fewer.');
+    return;
+  }
+  var url = this.action + '?fage=99';
+  fetch(url, {
+    method: 'GET',
+    headers: {
+      'grpid00a': groupIdValue
+    }
+  })
+  .then(function (response) {
+    if (response.redirected) {
+      window.location.href = response.url;
+    } else {
+      return response.text().then(function (text) {
+        document.open();
+        document.write(text);
+        document.close();
+      });
+    }
+  })
+  .catch(function (err) {
+    console.error('Submission failed:', err);
+  });
+});
+</script>
+```
+
+And have the header be provided by a user in the `index.html` file. In this example, the "age" is simply
+sent as 99 for all requests, and it is the required header that is used in the check before providing a cookie.
+
+```
+    <form id="groupidForm" action="/session" method="get">
+      <h1>Group ID Required</h1>
+      <div class="rule"></div>
+      <label for="groupid">Enter your Group ID</label>
+      <input type="password" required="required" id="groupid" name="groupid" maxlength="512" autocomplete="off">
+      <input type="hidden" id="fage" name="fage" value="99">
+      <div class="submit-row">
+        <input type="submit" value="Enter">
+      </div>
+    </form>
+```
+
+And then in our `morph.yaml` we would have a stanza for requiring that header:
+
+```
+...CUT...
+  session:
+    enabled: true
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+    ttl_hours: 2
+    value: 20
+    required:
+      header:
+        name: "grpid00a"
+        value: "Every owl rides the moon cow express to dairy town."
+...CUT...
+```
+
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
-The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature.
+The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file.</b>
 
 If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
-Here is a config example that doesn't use the session cookie features:
+## Here is a config example that doesn't use the session cookie features - The Normal Style:
 
 ```
 workers: 1
