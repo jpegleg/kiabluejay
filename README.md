@@ -18,7 +18,57 @@ Any other headers can be set via the `morph.yaml` headers section. See the examp
 
 Configure an Actix async IO server for one or more listeners for a single set of web files by using the `morph.yaml` file.
 
-## features of kiabluejay: sessions, requirements, and the morph.yaml
+## Here is a config example that doesn't use the special session cookie features
+
+### This is the "The Normal Style" that is recommended for general use
+
+This is a standard reference config. Customize the rewrites and directories (folders) to whatever is needed.
+Adjust the content-security-policy to match the needs of the web code or remove it. Tune the cache-control
+to meet the needs of the site, this reference caches for 600 seconds.
+
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '600'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: false
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+```
+
+<i>Note: In version of kiabluejay prior to v0.2.0, the "pages" section of the config was always required, even if sessions were disabled.</i>
+
+A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
+for the web server to use. The cert.pem is likely the leaf and intermediate. Redirection to TLS and strict transport security are enabled.
+
+The `static_dir` points to the web root on the file system.
+
+The `rewrites` section enables configurable rewrites.
+
+The `worker` count sets the number of worker threads to spawn during initialization. You might do 1 or 2 workers per vCPU. When in doubt, use 2.
+
+
+## features of kiabluejay: sessions, cookie requirements, and the morph.yaml
 
 The `morph.yaml` file is read from the working directory of the kiabluejay process, the `$(pwd)`. This enables multiple processes to `cd` into different directories and have different `morph.yaml` config files. This technique is used more heavily by the OpenBSD fork. The container style kiabluejay doesn't need this since the filesystem is that mounted within the container.
 
@@ -259,50 +309,22 @@ This means that any CSS, javascript, etc must be inside that "index_first_visit"
 
 If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
-## Here is a config example that doesn't use the session cookie features - The Normal Style:
 
+### The "kiastack"
+
+The "kiastack" is a collection of free software used together to manage application networking, transport security, network protocol support, fail over, security, and ultimately content serving.
+The kiastack services are primarily written in Rust but there is one in Go.
+
+<b>The full kiastack</b>
 ```
-workers: 1
-
-web:
-  static_dir: /var/www/html/
-  rewrites:
-    /docs: /docs/index.html
-    /about: /about.html
-    /shows: /shows.html
-    /art:   /art.html
-    /music: /music.html
-    /:      /index.html
-  headers:
-    cache-control: "max-age: '1200'"
-    referrer-policy: "strict-origin-when-cross-origin"
-    cross-origin-opener-policy: "same-origin"
-    cross-origin-embedder-policy: "require-corp"
-    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
-    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
-    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
-  session:
-    enabled: false
-listeners:
-  - port: 443
-    tls:
-      cert_path: /opt/morpho/cert.pem
-      key_path: /opt/morpho/key.pem
-  - port: 80
+- kiagateway: SNI and Host header application gateway
+- kiaproxy: failover provider
+- kiabluejay: actix web server [ protected content, security and performance focus ]
+- kiamagpie: go web server [ QUIC protocol, plain HTTP, remote caching, and multi-domain features ]
+- redirectrix: actix web server [ ACME HTTP-01 enablement ]
 ```
 
-<i>Note: In version of kiabluejay prior to v0.2.0, the "pages" section of the config was always required, even if sessions were disabled.</i>
-
-A listener is created for each configured port. TLS (HTTPS) can be enabled on any port by supplying `tls:` and the `key_path` and `cert_path` pointing to PEM files
-for the web server to use. The cert.pem is likely the leaf and intermediate. Redirection to TLS and strict transport security are enabled.
-
-The `static_dir` points to the web root on the file system.
-
-The `rewrites` section enables configurable rewrites.
-
-The `worker` count sets the number of worker threads to spawn during initialization. You might do 1 or 2 workers per vCPU. When in doubt, use 2.
-
-Also see [kiaproxy](https://github.com/jpegleg/kiaproxy) and [kiagateway](https://github.com/jpegleg/kiagateway/) for networking support.
+See [kiaproxy](https://github.com/jpegleg/kiaproxy) and [kiagateway](https://github.com/jpegleg/kiagateway/) for networking support.
 Also see kiabluejay's cousin [kiamagpie](https://github.com/jpegleg/kiamagpie) which does caching, QUIC, and cert hot-reloading.
 All together they are the kiastack and can handle domain routing, failover, and many different kinds of web serving needs while having a strong security posture and being high performance.
 
@@ -312,6 +334,20 @@ Both have configurable redirects, have JSON event logs, and are multi-listener. 
 error conditions and is only tracking JSON events at the HTTP level, where as kiamagpie tracks events at the TCP level.
 
 Kiabluejay will quickly panic if a certificate or key could not be loaded during initialization, this is intentional. Read output if the behavior is not what you expect and double check the mounts, morph.yaml values, file and directory names and permissions.
+
+One of the design choices of kiabluejay is to isolate a web root to the scope of a process, where as kiamagpie supports multiplexed domains and handling of many separate web roots and websites within the same process. The kiabluejay approach in this regard helps with security, where as the kiamagpie approach helps with centralization and ease.
+
+#### using the kiastack
+
+Select any or all of the services and deploy in a Kubernetes cluster, in Docker containers, in VMs, or on baremetal.
+
+The dockerhub releases are prebuilt containers for kiagateway, kiaproxy, kiabluejay, and kiamagpie.
+
+In linux we are more likely to use the OCI container style, although running via systemd or rc works great too.
+
+The OpenBSD style of use has examples in the [paludification_toad project](https://github.com/jpegleg/paludification_toad/) which diverge from the linux version (container versions) with additional OpenBSD security integrations and different cryptographic software for TLS.
+
+<b>Generally we have kiagateway and redirectrix as internet facing services. The kiagateway routes domain specific traffic to kiaproxy instances which route traffic to kiabluejay instances.</b>
 
 ## Installation
 
