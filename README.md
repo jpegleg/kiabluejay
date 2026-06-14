@@ -4,7 +4,7 @@
 
 Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as simple session cookies.
 
-The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, required headers to get cookies, and protected content that requires a cookie to access.
+The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, the ability to set required headers to get cookies, the ability to set required client source IP addresses to get cookies, and protected content that requires a cookie to access.
 
 Some headers are not configurable and required, set automatically by kiabluejay for security reasons:
 
@@ -72,6 +72,27 @@ The `rewrites` section enables configurable rewrites.
 The `worker` count sets the number of worker threads to spawn during initialization. You might do 1 or 2 workers per vCPU. When in doubt, use 2.
 
 The TLS ciphers are automatically set (via RusTLS), so there is no need to configure them. They are set to optimal secure defaults that get A+ reports. The reference config also has A+ industry standard headers as of June 2026. Headers and TLS change with the industry over time, and kiabluejay intends to keep up with the latest and greatest, within reason. The code is actively maintained as much as time permits.
+
+### old, new, dev - different workflows and approaches available
+
+For an "old classic" approach, the web content can be packaged in a .ZIP archive and unpacked on a server into the directory (folder) we configure for "static_dir" on the server.
+For a "new cloud native" approach, the web content can be managed via Kubernetes API so that each container is spawned with the required content mounted into it.
+
+For a web developer working locally, we can run kiabluejay on the CLI and use it while we develop our javascript and web content. While not strictly required, developing with kiabluejay locally enables us to write the morph.yaml most effectively, especially for aspects like content security policy which is specific to the web code requirements. Once established, the morph.yaml and (zip or tar archive, etc) of the web code and content can be used to deploy to the server or cloud system, or handed off to other teams for adoption, etc etc. If we don't want to run our development kiabluejay as root, then change the port to something else like 3443.
+
+```
+...CUT...
+listeners:
+  - port: 3443
+    tls:
+      cert_path: cert.pem
+      key_path: key.pem
+
+```
+When developing with self-signed certificates, you will of course need to skip trust checks. That is okay for local dev tests. Then we can open the web browser to "https://localhost:3443" and skip through the browser warnings for the self-signed untrusted cert, and view our dev version of the site.
+
+Then our code editor can edit the files and we can simply refresh the web browser to see the changes, kiabluejay hot reloads content so it can run while we change the code and files.
+
 
 ## features of kiabluejay: sessions, cookie requirements, and the morph.yaml
 
