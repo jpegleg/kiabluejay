@@ -1,6 +1,6 @@
 [package]
 name = "kiabluejay"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
 license = "MIT"
@@ -27,7 +27,7 @@ chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_yml = "0.0.12"
+yaml_serde = "0.10.4"
 
 [profile.release]
 opt-level   = 3
