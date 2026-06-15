@@ -649,13 +649,13 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.1\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.2\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
 
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
-    let config: Config = serde_yml::from_reader(config_file).expect("failed to read morph.yaml");
+    let config: Config = yaml_serde::from_reader(config_file).expect("failed to read morph.yaml");
 
     if let Err(e) = validate_config(&config) {
         eprintln!("Configuration error: {e}");
