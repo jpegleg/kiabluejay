@@ -101,6 +101,7 @@ struct SessionConfig {
     secure: Option<SessionSecureConfig>,
     required: Option<SessionRequiredConfig>,
     pages: Option<PageConfig>,
+    contexts: Option<Vec<String>>,
 }
 
 impl Default for SessionConfig {
@@ -113,6 +114,7 @@ impl Default for SessionConfig {
             secure: None,
             required: None,
             pages: None,
+            contexts: None,
         }
     }
 }
@@ -250,6 +252,7 @@ struct ResolvedSession {
     required_ipv4: Option<Vec<Ipv4Cidr>>,
     required_ipv6: Option<Vec<Ipv6Cidr>>,
     pages: Option<PageConfig>,
+    these_contexts: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -287,6 +290,13 @@ fn validate_config(config: &Config) -> Result<(), String> {
         if sess.required.is_some() {
             return Err(
                 "Sessions have been disabled so `session.required` cannot be included in \
+                 morph.yaml unless session is also enabled."
+                    .into(),
+            );
+        }
+        if sess.contexts.is_some() {
+            return Err(
+                "Sessions have been disabled so `session.contexts` cannot be included in \
                  morph.yaml unless session is also enabled."
                     .into(),
             );
@@ -359,6 +369,19 @@ fn validate_config(config: &Config) -> Result<(), String> {
                 Ipv6Cidr::parse(entry).map_err(|e| {
                     format!("invalid entry in `session.required.ipv6.addresses`: {}", e)
                 })?;
+            }
+        }
+    }
+
+    if let Some(contexts) = &sess.contexts {
+        if contexts.is_empty() {
+            return Err(
+                "`session.contexts` must contain at least one URI path when provided.".into(),
+            );
+        }
+        for ctx in contexts {
+            if ctx.trim().is_empty() {
+                return Err("`session.contexts` entries must not be empty.".into());
             }
         }
     }
@@ -513,7 +536,7 @@ async fn newcook(
 #[get("/")]
 async fn index(req: HttpRequest, state: web::Data<Arc<AppState>>) -> actix_web::Result<NamedFile> {
     let sess = &state.session;
-    if sess.enabled {
+    if sess.enabled && path_requires_session("/", "/", &sess.these_contexts) {
         let pages = sess.pages.as_ref().unwrap();
         let session = req.get_session();
         if let Ok(Some(count)) = session.get::<i32>("counter") {
@@ -549,7 +572,8 @@ async fn static_with_rewrites(
         request_path,
         rewritten,
         state.session.pages.as_ref().unwrap(),
-    ) {
+    ) || !path_requires_session(request_path, rewritten, &state.session.these_contexts)
+    {
         return open_path_under_static_root(&state.static_dir, rewritten).await;
     }
 
@@ -570,6 +594,31 @@ fn is_public_path(request_path: &str, rewritten_path: &str, pages: &PageConfig) 
         || path_matches_page(request_path, lte)
         || path_matches_page(rewritten_path, lte)
         || request_path == "/"
+}
+
+fn path_requires_session(
+    request_path: &str,
+    rewritten_path: &str,
+    contexts: &Option<Vec<String>>,
+) -> bool {
+    let Some(list) = contexts else {
+        return true;
+    };
+
+    let norm_req = normalize_url_like(request_path);
+    let norm_rewritten = normalize_url_like(rewritten_path);
+
+    list.iter().any(|ctx| {
+        let norm_ctx = normalize_url_like(ctx);
+        if norm_ctx == "/" {
+            return true;
+        }
+        let prefix = format!("{}/", norm_ctx);
+        norm_req == norm_ctx
+            || norm_req.starts_with(&prefix)
+            || norm_rewritten == norm_ctx
+            || norm_rewritten.starts_with(&prefix)
+    })
 }
 
 fn path_matches_page(path: &str, page: &str) -> bool {
@@ -649,7 +698,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.2\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.3\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
@@ -714,6 +763,11 @@ async fn main() -> eyre::Result<()> {
                 .collect()
         });
 
+    let these_contexts: Option<Vec<String>> = raw_sess
+        .contexts
+        .as_ref()
+        .map(|list| list.iter().map(|s| normalize_url_like(s)).collect());
+
     let resolved_session = ResolvedSession {
         enabled: raw_sess.enabled,
         ttl_hours: if raw_sess.ttl_hours == 0 {
@@ -728,6 +782,7 @@ async fn main() -> eyre::Result<()> {
         required_ipv4,
         required_ipv6,
         pages: raw_sess.pages.clone(),
+        these_contexts,
     };
 
     let state = Arc::new(AppState {
