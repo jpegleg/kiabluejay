@@ -242,6 +242,65 @@ listeners:
   - port: 80
 ```
 
+As of version `0.2.3` we can configure specific URI contexts to protect with sessions rather than using the default.
+
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '1200'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: true
+    contexts:
+      - "index2.html"
+      - "materials"
+      - "shop"
+      - "materials.html"
+      - "shop.html"
+      - "js/factory.js"
+      - "images/00001.png'
+      - "images/00002.png'
+      - "css/depth.css"
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+    ttl_hours: 2
+    value: 20
+    secure_cookie: true
+    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
+    required:
+      header:
+        name: "wesetthisforreasons"
+        value: "flavoroftheweek"
+      ipv4:
+        addresses:
+        - 127.0.0.1
+        - 192.168.1.0/24
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+
+```
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
 The most simple and normal way to use kiabluejay is to serve up a "web root" of files from a "directory" (folder).
@@ -331,7 +390,7 @@ The "value" config options within sessions is the number one less than the requi
 The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
-This means that any CSS, javascript, etc must be inside that "index_first_visit" file.</b>
+This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are owning the security of each file that is protected behind the "sessions" feature.</b>
 
 If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
