@@ -613,11 +613,8 @@ fn path_requires_session(
         if norm_ctx == "/" {
             return true;
         }
-        let prefix = format!("{}/", norm_ctx);
-        norm_req == norm_ctx
-            || norm_req.starts_with(&prefix)
-            || norm_rewritten == norm_ctx
-            || norm_rewritten.starts_with(&prefix)
+
+        norm_req.contains(&norm_ctx) || norm_rewritten.contains(&norm_ctx)
     })
 }
 
@@ -698,7 +695,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.3\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.4\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
