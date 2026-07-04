@@ -144,7 +144,7 @@ listeners:
   - port: 80
 ```
 
-As of version 0.2.0 we can also make specific headers or specific headers with specific values required to access the `/session` context that issues cookies.
+As of version `0.2.0` we can also make specific headers or specific headers with specific values required to access the `/session` context that issues cookies.
 
 
 ```
@@ -193,7 +193,7 @@ listeners:
 With version `0.2.1` and onward, we also have "ipv4" and "ipv6" options for "required", to limit access based on IP to `/session` cookies.
 
 While this isn't how a regular public website should be, if the system is designed so that specific IP addresses are used, then we can
-configure these as required in kiabluejay, as of v0.2.1.
+configure these as required in kiabluejay, as of `0.2.1`.
 
 ```
 workers: 1
@@ -301,6 +301,9 @@ listeners:
   - port: 80
 
 ```
+
+The "contexts" feature has been updated in `0.2.4` to glob match on configured rules rather than exact match. This is an important fix, `0.2.3` should not be used, use `0.2.4+` instead when using the "contexts" feature.
+
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
 The most simple and normal way to use kiabluejay is to serve up a "web root" of files from a "directory" (folder).
