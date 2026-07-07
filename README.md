@@ -2,7 +2,7 @@
 
 # kiabluejay
 
-Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as simple session cookies.
+Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as session cookies.
 
 The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, the ability to set required headers to get cookies, the ability to set required client source IP addresses to get cookies, and protected content that requires a cookie to access.
 
@@ -304,6 +304,18 @@ listeners:
 
 The "contexts" feature has been updated in `0.2.4` to glob match on configured rules rather than exact match. This is an important fix, `0.2.3` should not be used, use `0.2.4+` instead when using the "contexts" feature.
 
+Version `0.2.5` adds a DELETE method to `/session` to enable logout functionality.
+
+Example javascript that performs a logout (purge the cookie):
+
+```
+fetch('https://example.com:443/session?fage=1024', { method: 'DELETE', headers: { 'grpid00a': groupIdValue } })
+```
+
+The requirements on /session apply to both the creation of cookies and the deletion (purging) of them. So if we require specific headers and a fage value of greater than 1000 to get a cookie, then we'll also require those to purge the cookie.
+
+In many cases we can just let the cookie expire, but if we want to include some "logout" functionality in the web app, the session purge feature from `0.2.5+` can be used for purging the "id" session cookie created by the GET on /session.
+
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
 The most simple and normal way to use kiabluejay is to serve up a "web root" of files from a "directory" (folder).
@@ -393,9 +405,9 @@ The "value" config options within sessions is the number one less than the requi
 The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
-This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are explicitly defining the protected content with each file (URI context) that is protected behind the "sessions" feature.</b>
+This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts matches will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are explicitly defining the protected content with each file (URI context pattern) that is protected behind the "sessions" feature.</>
 
-If we disable "sessions" by setting "enabled: false" then we can skip the cookie requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
+If we disable "sessions" by setting "enabled: false" then we can skip the  requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
 
 ### The "kiastack"
