@@ -13,7 +13,7 @@ use actix_session::{
 use actix_web::{
     App, HttpRequest, HttpServer,
     cookie::{self, Key},
-    get, middleware,
+    delete, get, middleware,
     middleware::Condition,
     web,
 };
@@ -487,6 +487,41 @@ fn required_ip_satisfied(
     }
 }
 
+#[delete("/session")]
+async fn logout(
+    req: HttpRequest,
+    info: web::Query<Age>,
+    state: web::Data<Arc<AppState>>,
+) -> actix_web::Result<NamedFile> {
+    if !required_header_satisfied(&req, &state.session.required_header) {
+        return Err(actix_web::error::ErrorForbidden(
+            "Forbidden, your request was not authorized.",
+        ));
+    }
+
+    if !required_ip_satisfied(
+        &req,
+        &state.session.required_ipv4,
+        &state.session.required_ipv6,
+    ) {
+        return Err(actix_web::error::ErrorForbidden(
+            "Forbidden, your request was not authorized.",
+        ));
+    }
+
+    let sess = &state.session;
+    let threshold = sess.age_value.unwrap() as i32;
+    let pages = sess.pages.as_ref().unwrap();
+
+    if info.fage > threshold {
+        if sess.enabled {
+            let session = req.get_session();
+            let _ = session.purge();
+        }
+    }
+    open_configured_file(&state.static_dir, &pages.index_first_visit).await
+}
+
 #[get("/session")]
 async fn newcook(
     req: HttpRequest,
@@ -695,7 +730,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.4\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.5\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
@@ -845,6 +880,7 @@ async fn main() -> eyre::Result<()> {
             ))
             .service(index)
             .service(newcook)
+            .service(logout)
             .route("/{tail:.*}", web::get().to(static_with_rewrites))
     })
     .workers(workers);
