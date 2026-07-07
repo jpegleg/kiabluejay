@@ -1,6 +1,6 @@
 [package]
 name = "kiabluejay"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
 license = "MIT"
@@ -12,7 +12,7 @@ keywords = ["hybrid-pqc", "web-server", "secure-server", "actix", "rustls"]
 categories = ["network-programming", "web-programming::http-server"]
 
 [dependencies]
-actix-web = { version = "4.13", features = ["rustls", "rustls-0_23"] }
+actix-web = { version = "4.14", features = ["rustls", "rustls-0_23"] }
 rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
 rustls-webpki = { version = "0.102.8", features = ["aws_lc_rs"] }
 rustls-pemfile = "2"
@@ -30,6 +30,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 yaml_serde = "0.10.4"
 
 [profile.release]
-opt-level   = 3
-strip       = true
-lto         = true
+opt-level = 3
+strip = true
+lto = true
