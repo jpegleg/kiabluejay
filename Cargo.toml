@@ -25,7 +25,7 @@ eyre = { version = "0.6", default-features = false, features = ["auto-install", 
 tokio = { version = "1.52.3", features = ["time", "rt", "macros"] }
 chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
-cookie = "0.18"
+cookie = "0.16"
 serde = { version = "1.0.228", features = ["derive"] }
 yaml_serde = "0.10.4"
 
