@@ -506,6 +506,7 @@ async fn logout(
             Some(age) => age as i32,
             None => 0,
         };
+        
         if !required_header_satisfied(&req, &state.session.required_header) {
              return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
@@ -538,8 +539,19 @@ async fn newcook(
 ) -> actix_web::Result<NamedFile> {
     let sess = &state.session;
     if sess.pages.is_some() {
-        let pages = sess.pages.as_ref().unwrap();
-        let threshold = sess.age_value.unwrap() as i32;
+        let pages = match sess.pages.as_ref() {
+            Some(pages) => pages,
+            None => {
+                return Err(actix_web::error::ErrorInternalServerError(
+                    "configuration unavailable",
+                ));
+            }
+        };
+        let threshold = match sess.age_value {
+            Some(age) => age as i32,
+            None => 0,
+        };
+        
         if !required_header_satisfied(&req, &state.session.required_header) {
             return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
