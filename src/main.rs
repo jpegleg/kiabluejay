@@ -57,6 +57,7 @@ struct WebConfig {
 struct PageConfig {
     index_first_visit: String,
     index_returning_visit: Option<String>,
+    cookie_forbidden: String,
     session_age_gt_value: Option<String>,
     session_age_lte_value: Option<String>,
 }
@@ -303,13 +304,11 @@ fn validate_config(config: &Config) -> Result<(), String> {
         }
         return Ok(());
     }
-
     if sess.value.is_none() {
         return Err("`session.value` is required when sessions are enabled. \
              Set it to an integer between 0 and 32767."
             .into());
     }
-
     let pages = sess
         .pages
         .as_ref()
@@ -493,10 +492,12 @@ async fn logout(
     info: web::Query<Age>,
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
+    let sess = &state.session;
+    let pages = sess.pages.as_ref().unwrap();
+    let threshold = sess.age_value.unwrap() as i32;
+
     if !required_header_satisfied(&req, &state.session.required_header) {
-        return Err(actix_web::error::ErrorForbidden(
-            "Forbidden, your request was not authorized.",
-        ));
+        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
     }
 
     if !required_ip_satisfied(
@@ -504,14 +505,8 @@ async fn logout(
         &state.session.required_ipv4,
         &state.session.required_ipv6,
     ) {
-        return Err(actix_web::error::ErrorForbidden(
-            "Forbidden, your request was not authorized.",
-        ));
+        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
     }
-
-    let sess = &state.session;
-    let threshold = sess.age_value.unwrap() as i32;
-    let pages = sess.pages.as_ref().unwrap();
 
     if info.fage > threshold {
         if sess.enabled {
@@ -528,10 +523,12 @@ async fn newcook(
     info: web::Query<Age>,
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
+    let sess = &state.session;
+    let pages = sess.pages.as_ref().unwrap();
+    let threshold = sess.age_value.unwrap() as i32;
+
     if !required_header_satisfied(&req, &state.session.required_header) {
-        return Err(actix_web::error::ErrorForbidden(
-            "Forbidden, your request was not authorized.",
-        ));
+        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
     }
 
     if !required_ip_satisfied(
@@ -539,14 +536,8 @@ async fn newcook(
         &state.session.required_ipv4,
         &state.session.required_ipv6,
     ) {
-        return Err(actix_web::error::ErrorForbidden(
-            "Forbidden, your request was not authorized.",
-        ));
+        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
     }
-
-    let sess = &state.session;
-    let threshold = sess.age_value.unwrap() as i32;
-    let pages = sess.pages.as_ref().unwrap();
 
     if info.fage > threshold {
         if sess.enabled {
@@ -730,7 +721,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.5\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.6\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
