@@ -494,8 +494,18 @@ async fn logout(
 ) -> actix_web::Result<NamedFile> {
     let sess = &state.session;
     if sess.pages.is_some() {
-        let pages = sess.pages.as_ref().unwrap();
-        let threshold = sess.age_value.unwrap() as i32;
+        let pages = match sess.pages.as_ref() {
+            Some(pages) => pages,
+            None => {
+                return Err(actix_web::error::ErrorInternalServerError(
+                    "configuration unavailable",
+                ));
+            }
+        };
+        let threshold = match sess.age_value {
+            Some(age) => age as i32,
+            None => 0,
+        };
         if !required_header_satisfied(&req, &state.session.required_header) {
              return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
@@ -727,7 +737,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.7\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.8\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
