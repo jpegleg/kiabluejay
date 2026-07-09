@@ -588,8 +588,8 @@ Here is an example of pulling the image from docker hub and running via Podman o
 
 ```
 podman pull docker.io/carefuldata/kiabluejay:latest
-
-export RUN_ID="$(cat /dev/random | head -n2 | base64 | tr -d '\n' | cut -c 1-12)"# pass whatever value you want to be logged as "run_id" which each log event
+# pass whatever value you want to be logged as "run_id" with each log event
+export RUN_ID="$(hostname)-$(date +%Y%m%d%H%M)"
 # the default run_id is "kiabluejay" but if default will only log at init, not http event, default run_id of an http event is "-".
 
 podman run -d -it --network=host \
