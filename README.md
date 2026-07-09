@@ -2,7 +2,7 @@
 
 # kiabluejay
 
-Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Whether it is mission critical content serving, large scale content delivery, or for your personal project or small business website, kiablujay handles heavy load reliably, and is easy to use with a single YAML config with code and docs that provide many secure defaults and clear instructions. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as session cookies.
+Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Whether it is mission critical content serving, large scale content delivery, or for your personal project or small business website, kiabluejay handles heavy load reliably, and is easy to use with a single YAML config with code and docs that provide many secure defaults and clear instructions. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as session cookies.
 
 The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, the ability to set required headers to get cookies, the ability to set required client source IP addresses to get cookies, and protected content that requires a cookie to access.
 
