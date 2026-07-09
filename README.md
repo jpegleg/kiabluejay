@@ -102,11 +102,13 @@ Kiabluejay is a TLS and security focused server, HTTP listeners on any port will
 
 The config structure has changed with v0.2.0, now "pages" is nested within "session" and is only used if session is "enabled: true". Version 0.2.0 also expands the session features significantly, enabling secure cookies, header requirements for getting a cookie, and a configurable integer "value". This "value" integer is the value below what is required for `/session?fage=value` to issue a cookie. The max value for `fage` is 32767.
 
-Here is an example config that enables many secure defaults regarding content security policy and strict transport security, and uses the session features.
+The config structure changed again with v0.2.6, now "cookie_forbidden" page is a required config value when sessions are enabled.
+
+Here is an example config that enables many good defaults and strict transport security, and uses the session features with secure session cookies. Using secure mode isn't always required for session cookies as they don't always represent authentication and may not be a problem if they are forged or tampered with. But if the cookie is for a security or authenticated content use, then a secure cookie should likely be used, and likely the cache-control value lowered or set to `no-cache` like this next example. It is up to the web code, which we'll demonstrate later in this document, to how the sessions feature is actually used. Kiabluejay just provides a generic mechanism for sessions that can be then used by the (javascript) for whichever applications we run via kiabluejay.
 
 
 ```
-workers: 1
+workers: 2
 
 web:
   static_dir: /var/www/html/
@@ -118,11 +120,10 @@ web:
     /music: /music.html
     /:      /index.html
   headers:
-    cache-control: "max-age: '1200'"
+    cache-control: "no-cache"
     referrer-policy: "strict-origin-when-cross-origin"
     cross-origin-opener-policy: "same-origin"
     cross-origin-embedder-policy: "require-corp"
-    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
     permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
     strict-transport-security: "max-age=63072000; includeSubDomains; preload"
   session:
@@ -132,6 +133,7 @@ web:
       index_returning_visit: "index2.html"
       session_age_gt_value: "index2.html"
       session_age_lte_value: "index3.html"
+      cookie_forbidden: "403.html"
     ttl_hours: 2
     value: 20
     secure_cookie: true
@@ -141,7 +143,6 @@ listeners:
     tls:
       cert_path: /opt/morpho/cert.pem
       key_path: /opt/morpho/key.pem
-  - port: 80
 ```
 
 As of version `0.2.0` we can also make specific headers or specific headers with specific values required to access the `/session` context that issues cookies.
@@ -160,7 +161,7 @@ web:
     /music: /music.html
     /:      /index.html
   headers:
-    cache-control: "max-age: '1200'"
+    cache-control: "no-cache"
     referrer-policy: "strict-origin-when-cross-origin"
     cross-origin-opener-policy: "same-origin"
     cross-origin-embedder-policy: "require-corp"
@@ -174,6 +175,7 @@ web:
       index_returning_visit: "index2.html"
       session_age_gt_value: "index2.html"
       session_age_lte_value: "index3.html"
+      cookie_forbidden: "403.html"
     ttl_hours: 2
     value: 20
     secure_cookie: true
@@ -193,7 +195,8 @@ listeners:
 With version `0.2.1` and onward, we also have "ipv4" and "ipv6" options for "required", to limit access based on IP to `/session` cookies.
 
 While this isn't how a regular public website should be, if the system is designed so that specific IP addresses are used, then we can
-configure these as required in kiabluejay, as of `0.2.1`.
+configure these as required in kiabluejay, as of `0.2.1`. Let's also change our cache example header to cache for 1200 seconds for this one, maybe 
+because the failed cookie fetching caching condition isn't a factor for how the web code uses it and we can start using the cache more.
 
 ```
 workers: 1
@@ -222,6 +225,7 @@ web:
       index_returning_visit: "index2.html"
       session_age_gt_value: "index2.html"
       session_age_lte_value: "index3.html"
+      cookie_forbidden: "403.html"
     ttl_hours: 2
     value: 20
     secure_cookie: true
@@ -281,6 +285,7 @@ web:
       index_returning_visit: "index2.html"
       session_age_gt_value: "index2.html"
       session_age_lte_value: "index3.html"
+      cookie_forbidden: "403.html"
     ttl_hours: 2
     value: 20
     secure_cookie: true
@@ -313,6 +318,134 @@ fetch('https://example.com:443/session?fage=1024', { method: 'DELETE', headers: 
 ```
 
 The requirements on /session apply to both the creation of cookies and the deletion (purging) of them. So if we require specific headers and a fage value of greater than 1000 to get a cookie, then we'll also require those to purge the cookie.
+
+There is a configured "cookie_forbidden" page that is required with "sessions" is enabled, as of `0.2.6`. This change enables users to define the page loaded when `/session` access is denied. In previous versions, the message was "Forbidden, your request was not authorized.". Instead of that, in `0.2.6+` we configure the web page to display when a cookie request is rejected.
+
+```
+workers: 1
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shows: /shows.html
+    /art:   /art.html
+    /music: /music.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '1200'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "geolocation=(),camera=(),microphone=(),payment=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: true
+    contexts:
+      - "index2.html"
+      - "materials"
+      - "shop"
+      - "materials.html"
+      - "shop.html"
+      - "js/factory.js"
+      - "images/00001.png'
+      - "images/00002.png'
+      - "css/depth.css"
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+      cookie_forbidden: "status_codes/400_series/http_403.html"
+    ttl_hours: 2
+    value: 20
+    secure_cookie: true
+    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
+    required:
+      header:
+        name: "wesetthisforreasons"
+        value: "flavoroftheweek"
+      ipv4:
+        addresses:
+        - 127.0.0.1
+        - 192.168.1.0/24
+listeners:
+  - port: 443
+    tls:
+      cert_path: /opt/morpho/cert.pem
+      key_path: /opt/morpho/key.pem
+  - port: 80
+
+```
+
+Here is a realistic looking example config for sessions, like for online liquor sales that requires some specific values to be set to get to the 21+ content of the site. This version updates the headers to allow geolocation and payments features in the browser's permissions_policy.
+
+```
+workers: 8
+
+web:
+  static_dir: /var/www/html/
+  rewrites:
+    /docs: /docs/index.html
+    /about: /about.html
+    /shop:  /shop.html
+    /materials: /materials.html
+    /policies: /policies.html
+    /security: /security.html
+    /:      /index.html
+  headers:
+    cache-control: "max-age: '5'"
+    referrer-policy: "strict-origin-when-cross-origin"
+    cross-origin-opener-policy: "same-origin"
+    cross-origin-embedder-policy: "require-corp"
+    content-security-policy: "style-src 'self' 'unsafe-inline' https:;img-src 'self' data: https:;font-src 'self' https:;connect-src 'self' https:;object-src 'none';base-uri 'none';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;"
+    permissions-policy: "camera=(),microphone=(),usb=(),fullscreen=(self)"
+    strict-transport-security: "max-age=63072000; includeSubDomains; preload"
+  session:
+    enabled: true
+    contexts:
+      - "index2.html"
+      - "materials"
+      - "shop"
+      - "materials.html"
+      - "shop.html"
+      - "js/factory.js"
+      - "images/products_00001.png'
+      - "images/products_00002.png'
+      - "images/wine_of_the_month.png'
+      - "images/products_00003.png'
+      - "images/products_00004.png'
+      - "images/products_00005.png'
+      - "images/products_00006.png'
+      - "images/products_00007.png'
+      - "images/products_00008.png'
+      - "images/products_00009.png'
+      - "css/depth.css"
+    pages:
+      index_first_visit: "index.html"
+      index_returning_visit: "index2.html"
+      session_age_gt_value: "index2.html"
+      session_age_lte_value: "index3.html"
+      cookie_forbidden: "http_403.html"
+    ttl_hours: 6
+    value: 20
+    secure_cookie: true
+    key_path: 2026_cookie_hmac_03.bin
+    required:
+      header:
+        name: "promocode"
+listeners:
+  - port: 443
+    tls:
+      cert_path: cert.pem
+      key_path: key.pem
+  - port: 80
+
+```
+
+_Notice how this example has a low cache value in the headers,`cache-control: "max-age: '5'"`. This is often a good choice when using "sessions" as it avoids the situations where invalid auth or post auth remained cached on the client side for longer than desired but still provides a small amount of caching for user flows. Having a longer cache life optimizes performance and utilization, but having a shorter cache life helps when auth state changes to the same pages/contexts might occur within the cache window. Having a short cache duration also helps if content frequently changes, so visitors get the updates quickly rather than waiting potentially hours or days to see a page update if the cache duration is long. Web browsers can get "stuck" with cached content, preventing successful auth after failed auth, or preventing newly updated content fixes from displaying._
 
 In many cases we can just let the cookie expire, but if we want to include some "logout" functionality in the web app, the session purge feature from `0.2.5+` can be used for purging the "id" session cookie created by the GET on /session.
 
@@ -390,6 +523,7 @@ And then in our `morph.yaml` we would have a stanza for requiring that header:
       index_returning_visit: "index2.html"
       session_age_gt_value: "index2.html"
       session_age_lte_value: "index3.html"
+      cookie_forbidden: "403.html"
     ttl_hours: 2
     value: 20
     required:
