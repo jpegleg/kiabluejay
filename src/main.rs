@@ -493,28 +493,31 @@ async fn logout(
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
     let sess = &state.session;
-    let pages = sess.pages.as_ref().unwrap();
-    let threshold = sess.age_value.unwrap() as i32;
-
-    if !required_header_satisfied(&req, &state.session.required_header) {
-        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
-    }
-
-    if !required_ip_satisfied(
-        &req,
-        &state.session.required_ipv4,
-        &state.session.required_ipv6,
-    ) {
-        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
-    }
-
-    if info.fage > threshold {
-        if sess.enabled {
-            let session = req.get_session();
-            let _ = session.purge();
+    if sess.pages.is_some() {
+        let pages = sess.pages.as_ref().unwrap();
+        let threshold = sess.age_value.unwrap() as i32;
+        if !required_header_satisfied(&req, &state.session.required_header) {
+             return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
+
+        if !required_ip_satisfied(
+            &req,
+            &state.session.required_ipv4,
+            &state.session.required_ipv6,
+        ) {
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+        }
+
+        if info.fage > threshold {
+            if sess.enabled {
+                let session = req.get_session();
+                let _ = session.purge();
+            }
+        }
+        open_configured_file(&state.static_dir, &pages.index_first_visit).await
+    } else {
+        open_configured_file(&state.static_dir, "/").await
     }
-    open_configured_file(&state.static_dir, &pages.index_first_visit).await
 }
 
 #[get("/session")]
@@ -524,38 +527,41 @@ async fn newcook(
     state: web::Data<Arc<AppState>>,
 ) -> actix_web::Result<NamedFile> {
     let sess = &state.session;
-    let pages = sess.pages.as_ref().unwrap();
-    let threshold = sess.age_value.unwrap() as i32;
-
-    if !required_header_satisfied(&req, &state.session.required_header) {
-        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
-    }
-
-    if !required_ip_satisfied(
-        &req,
-        &state.session.required_ipv4,
-        &state.session.required_ipv6,
-    ) {
-        return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
-    }
-
-    if info.fage > threshold {
-        if sess.enabled {
-            let session = req.get_session();
-            let counter = session.get::<i32>("counter").ok().flatten().unwrap_or(0) + 1;
-            let _ = session.insert("counter", counter);
+    if sess.pages.is_some() {
+        let pages = sess.pages.as_ref().unwrap();
+        let threshold = sess.age_value.unwrap() as i32;
+        if !required_header_satisfied(&req, &state.session.required_header) {
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
-        open_configured_file(
-            &state.static_dir,
-            pages.session_age_gt_value.as_deref().unwrap(),
-        )
-        .await
+
+        if !required_ip_satisfied(
+            &req,
+            &state.session.required_ipv4,
+            &state.session.required_ipv6,
+        ) {
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+        }
+
+        if info.fage > threshold {
+            if sess.enabled {
+                let session = req.get_session();
+                let counter = session.get::<i32>("counter").ok().flatten().unwrap_or(0) + 1;
+                let _ = session.insert("counter", counter);
+            }
+            open_configured_file(
+                &state.static_dir,
+                pages.session_age_gt_value.as_deref().unwrap(),
+            )
+            .await
+        } else {
+            open_configured_file(
+                &state.static_dir,
+                pages.session_age_lte_value.as_deref().unwrap(),
+            )
+            .await
+        }
     } else {
-        open_configured_file(
-            &state.static_dir,
-            pages.session_age_lte_value.as_deref().unwrap(),
-        )
-        .await
+        open_configured_file(&state.static_dir, "/").await
     }
 }
 
@@ -721,7 +727,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.6\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.7\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
