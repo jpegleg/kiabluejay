@@ -2,7 +2,7 @@
 
 # kiabluejay
 
-Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as session cookies.
+Kiabluejay is fast and security focused, leveraging Actix for extremely fast HTTP framework and Tokio industry leading performance. Whether it is mission content serving, large scale content delivery, or for your personal project or small business website, kiablujay handles heavy load reliably, and is easy to use with a single YAML config with code and docs that provide many secure defaults and clear instructions. Kiabluejay uses aws-lc-rs with RusTLS for SSL/TLS cryptography. It enables web serving with hybrid PQC via RusTLS with aws-lc-rs. Kiabluejay has JSON HTTP event logging, configurable headers, as well as session cookies.
 
 The use of the cookies is optional, but they are an available configurable content gate feature. The "session" feature enables secure cookies, regular cookies, the ability to set required headers to get cookies, the ability to set required client source IP addresses to get cookies, and protected content that requires a cookie to access.
 
@@ -104,7 +104,7 @@ The config structure has changed with v0.2.0, now "pages" is nested within "sess
 
 The config structure changed again with v0.2.6, now "cookie_forbidden" page is a required config value when sessions are enabled.
 
-Here is an example config that enables many good defaults and strict transport security, and uses the session features with secure session cookies. Using secure mode isn't always required for session cookies as they don't always represent authentication and may not be a problem if they are forged or tampered with. But if the cookie is for a security or authenticated content use, then a secure cookie should likely be used, and likely the cache-control value lowered or set to `no-cache` like this next example. It is up to the web code, which we'll demonstrate later in this document, to how the sessions feature is actually used. Kiabluejay just provides a generic mechanism for sessions that can be then used by the (javascript) for whichever applications we run via kiabluejay.
+Here is an example config that enables many good defaults and strict transport security, and uses the session features with secure session cookies. Using secure mode isn't always required for session cookies as they don't always represent authentication and may not be a problem if they are forged or tampered with. But if the cookie is for a security or authenticated content use, then a secure cookie should likely be used, and likely the cache-control value lowered or set to `no-cache` like this next example. It is up to the web code, which we'll demonstrate later in this document, to how the sessions feature is actually used.
 
 
 ```
@@ -195,8 +195,9 @@ listeners:
 With version `0.2.1` and onward, we also have "ipv4" and "ipv6" options for "required", to limit access based on IP to `/session` cookies.
 
 While this isn't how a regular public website should be, if the system is designed so that specific IP addresses are used, then we can
-configure these as required in kiabluejay, as of `0.2.1`. Let's also change our cache example header to cache for 1200 seconds for this one, maybe 
-because the failed cookie fetching caching condition isn't a factor for how the web code uses it and we can start using the cache more.
+configure these as required in kiabluejay, as of `0.2.1`. 
+
+Let's also change our cache example header to cache for 1200 seconds for this one, maybe because the failed cookie fetching caching condition isn't a factor for how the web code uses it and we can start using the cache more.
 
 ```
 workers: 1
