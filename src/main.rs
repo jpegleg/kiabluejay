@@ -514,9 +514,9 @@ async fn logout(
                 let _ = session.purge();
             }
         }
-        open_configured_file(&state.static_dir, &pages.index_first_visit).await
+        return open_configured_file(&state.static_dir, &pages.index_first_visit).await
     } else {
-        open_configured_file(&state.static_dir, "/").await
+        return open_configured_file(&state.static_dir, "/index.html").await
     }
 }
 
@@ -561,7 +561,7 @@ async fn newcook(
             .await
         }
     } else {
-        open_configured_file(&state.static_dir, "/").await
+        return open_configured_file(&state.static_dir, "index.html").await
     }
 }
 
