@@ -273,14 +273,8 @@ web:
     enabled: true
     contexts:
       - "index2.html"
-      - "materials"
-      - "shop"
-      - "materials.html"
-      - "shop.html"
-      - "js/factory.js"
-      - "images/00001.png'
-      - "images/00002.png'
-      - "css/depth.css"
+      - "shows.html"
+      - "art2.html"
     pages:
       index_first_visit: "index.html"
       index_returning_visit: "index2.html"
@@ -320,7 +314,9 @@ fetch('https://example.com:443/session?fage=1024', { method: 'DELETE', headers: 
 
 The requirements on /session apply to both the creation of cookies and the deletion (purging) of them. So if we require specific headers and a fage value of greater than 1000 to get a cookie, then we'll also require those to purge the cookie.
 
-There is a configured "cookie_forbidden" page that is required with "sessions" is enabled, as of `0.2.6`. This change enables users to define the page loaded when `/session` access is denied because of missed "required" requirements, such as wrong header value or unauthorized IP address. This doesn't change the "age" denied page that already exists as "session_age_lte_value". In previous versions, the message for these client requirements failures was "Forbidden, your request was not authorized.". Instead of that fixed message for those client error paths, in `0.2.6+` we configure the web page to display when a cookie request is rejected.
+There is a configured "cookie_forbidden" page that is required with "sessions" is enabled, as of `0.2.6`. This change enables users to define the page loaded when `/session` access is denied because of missed "required" requirements, such as wrong header value or unauthorized IP address. This doesn't change the "age" "less than or equal to value" page that already exists as "session_age_lte_value".
+
+In previous versions, the message for client "required" failures was "Forbidden, your request was not authorized.". Instead of that fixed message for those client error paths, in `0.2.6+` we configure the web page to display when a cookie request is rejected.
 
 ```
 workers: 1
@@ -346,14 +342,8 @@ web:
     enabled: true
     contexts:
       - "index2.html"
-      - "materials"
-      - "shop"
-      - "materials.html"
-      - "shop.html"
-      - "js/factory.js"
-      - "images/00001.png'
-      - "images/00002.png'
-      - "css/depth.css"
+      - "shows.html"
+      - "art2.html"
     pages:
       index_first_visit: "index.html"
       index_returning_visit: "index2.html"
