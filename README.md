@@ -36,11 +36,8 @@ workers: 1
 web:
   static_dir: /var/www/html/
   rewrites:
-    /docs: /docs/index.html
+    /policy: /policy.html
     /about: /about.html
-    /shows: /shows.html
-    /art:   /art.html
-    /music: /music.html
     /:      /index.html
   headers:
     cache-control: "max-age: '600'"
@@ -52,12 +49,13 @@ web:
     strict-transport-security: "max-age=63072000; includeSubDomains; preload"
   session:
     enabled: false
+
 listeners:
   - port: 443
     tls:
       cert_path: /opt/morpho/cert.pem
       key_path: /opt/morpho/key.pem
-  - port: 80
+  - port: 80 # redirects to HTTPS 443 because no "tls" section defined
 ```
 
 <i>Note: In version of kiabluejay prior to v0.2.0, the "pages" section of the config was always required, even if sessions were disabled.</i>
