@@ -541,7 +541,7 @@ The kiastack services are primarily written in Rust but there is one in Go.
 <b>The full kiastack</b>
 ```
 - kiagateway: SNI and Host header application gateway
-- kiaproxy: failover provider
+- kiaproxy: load balancing provider [ fan-out, HA, DR, failover ]
 - kiabluejay: actix web server [ protected content, security and performance focus ]
 - kiamagpie: go web server [ QUIC protocol, plain HTTP, remote caching, and multi-domain features ]
 - redirectrix: actix web server [ ACME HTTP-01 enablement ]
