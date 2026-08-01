@@ -432,7 +432,7 @@ _Notice how this example has a low cache value in the headers,`cache-control: "m
 
 In many cases we can just let the cookie expire, but if we want to include some "logout" functionality in the web app, the session purge feature from `0.2.5+` can be used for purging the "id" session cookie created by the GET on /session.
 
-<b>Important note:</b>If "sessions" are enabled, then a 64 byte file named "hmac.bin" must be in the pwd of the running kiabluejay process ('/' for the container version). Otherwise kiabluejay will refuse to start. This was an important fix introduced in 0.2.9 to avoid cases were defaults could be unexpectedly used and allow cookie forgery.
+<b>Important note:</b> If "sessions" are enabled, then a 64 byte file named "hmac.bin" must be in the pwd of the running kiabluejay process ('/' for the container version). Otherwise kiabluejay will refuse to start. This was an important fix introduced in 0.2.9 to avoid cases were defaults could be unexpectedly used and allow cookie forgery.
 
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
