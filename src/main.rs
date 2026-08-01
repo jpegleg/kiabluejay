@@ -381,7 +381,7 @@ fn validate_config(config: &Config) -> Result<(), String> {
 fn load_signing_key(path: &str) -> [u8; 64] {
     let mut f = File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
     let mut c_bytes = [0; 64];
-    f.read(&mut c_bytes).unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
+    f.read_exect(&mut c_bytes).unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
     c_bytes
 }
 
