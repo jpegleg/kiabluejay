@@ -813,7 +813,6 @@ async fn main() -> eyre::Result<()> {
         },
         secure_cookie: raw_sess.secure_cookie,
         age_value: raw_sess.value,
-        signing_key: signing_key.clone(),
         required_header: raw_sess.required.as_ref().and_then(|r| r.header.clone()),
         required_ipv4,
         required_ipv6,
