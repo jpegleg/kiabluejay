@@ -135,7 +135,6 @@ web:
     ttl_hours: 2
     value: 20
     secure_cookie: true
-    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
 listeners:
   - port: 443
     tls:
@@ -177,7 +176,6 @@ web:
     ttl_hours: 2
     value: 20
     secure_cookie: true
-    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
     required:
       header:
         name: "wesetthisforreasons"
@@ -228,7 +226,6 @@ web:
     ttl_hours: 2
     value: 20
     secure_cookie: true
-    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
     required:
       header:
         name: "wesetthisforreasons"
@@ -282,7 +279,6 @@ web:
     ttl_hours: 2
     value: 20
     secure_cookie: true
-    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
     required:
       header:
         name: "wesetthisforreasons"
@@ -351,7 +347,6 @@ web:
     ttl_hours: 2
     value: 20
     secure_cookie: true
-    key_path: /opt/kiabluejay/crypt/cookie_signer.pem
     required:
       header:
         name: "wesetthisforreasons"
@@ -421,7 +416,6 @@ web:
     ttl_hours: 6
     value: 20
     secure_cookie: true
-    key_path: 2026_cookie_hmac_03.bin
     required:
       header:
         name: "promocode"
@@ -437,6 +431,8 @@ listeners:
 _Notice how this example has a low cache value in the headers,`cache-control: "max-age: '5'"`. This is often a good choice when using "sessions" as it avoids the situations where invalid auth or post auth remained cached on the client side for longer than desired but still provides a small amount of caching for user flows. Having a longer cache life optimizes performance and utilization, but having a shorter cache life helps when auth state changes to the same pages/contexts might occur within the cache window. Having a short cache duration also helps if content frequently changes, so visitors get the updates quickly rather than waiting potentially hours or days to see a page update if the cache duration is long. Web browsers can get "stuck" with cached content, preventing successful auth after failed auth, or preventing newly updated content fixes from displaying._
 
 In many cases we can just let the cookie expire, but if we want to include some "logout" functionality in the web app, the session purge feature from `0.2.5+` can be used for purging the "id" session cookie created by the GET on /session.
+
+<b>Important note:</b>If "sessions" are enabled, then a 64 byte file named "hmac.bin" must be in the pwd of the running kiabluejay process ('/' for the container version). Otherwise kiabluejay will refuse to start. This was an important fix introduced in 0.2.9 to avoid cases were defaults could be unexpectedly used and allow cookie forgery.
 
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
@@ -525,7 +521,7 @@ And then in our `morph.yaml` we would have a stanza for requiring that header:
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
-The cookie signing key is to be any sufficiently strong 64 bytes or larger. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
+The cookie signing key the "hmac.bin" 64 byte file in the working directory of the kiebluejay process. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts matches will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are explicitly defining the protected content with each file (URI context pattern) that is protected behind the "sessions" feature.</b>
@@ -592,9 +588,10 @@ export RUN_ID="$(hostname)-$(date +%Y%m%d%H%M)"
 
 podman run -d -it --network=host \
   --env RUN_ID \
-  -v /opt/kiamagpie_live/morph.yaml:/morph.yaml \
+  -v /opt/kiabluejay_live/morph.yaml:/morph.yaml \
   -v /var/www/html/:/var/www/html/
-  -v /opt/kiamagpie_crypt/:/opt/crypt/ \
+  -v /opt/kiabluejay_crypt/:/opt/crypt/ \
+  -v /opt/kiabluejaye_cookie/hmac.bin:/hmac.bin \
   carefuldata/kiabluejay:latest
 
 ```
