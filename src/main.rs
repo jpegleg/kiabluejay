@@ -55,16 +55,11 @@ struct WebConfig {
 
 #[derive(Deserialize, Clone)]
 struct PageConfig {
+    cookie_forbidden: String,
     index_first_visit: String,
     index_returning_visit: Option<String>,
-    cookie_forbidden: String,
     session_age_gt_value: Option<String>,
     session_age_lte_value: Option<String>,
-}
-
-#[derive(Deserialize, Clone)]
-struct SessionSecureConfig {
-    key_path: String,
 }
 
 #[derive(Deserialize, Clone)]
@@ -88,6 +83,10 @@ struct SessionRequiredConfig {
     header: Option<HeaderRequirement>,
     ipv4: Option<Ipv4Requirement>,
     ipv6: Option<Ipv6Requirement>,
+}
+
+#[derive(Deserialize, Clone)]
+struct SessionSecureConfig {
 }
 
 #[derive(Deserialize, Clone)]
@@ -388,14 +387,13 @@ fn validate_config(config: &Config) -> Result<(), String> {
     Ok(())
 }
 
-fn load_signing_key(path: &str) -> Vec<u8> {
-    let mut f =
-        File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
-    let mut pem_bytes = Vec::new();
-    f.read_to_end(&mut pem_bytes)
-        .unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
-    pem_bytes
+fn load_signing_key(path: &str) -> [u8; 64] {
+    let mut f = File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
+    let mut c_bytes = [0; 64];
+    f.read(&mut c_bytes).unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
+    c_bytes
 }
+
 
 fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
     let certfile = File::open(filename).expect("cannot open certificate file");
@@ -855,9 +853,10 @@ async fn main() -> eyre::Result<()> {
     let session_ttl_hours = resolved_session.ttl_hours;
     let secure_cookie = resolved_session.secure_cookie;
     let workers = config.workers.unwrap_or(2);
-    let cookie_key = signing_key
-        .map(|bytes| Key::from(&bytes))
-        .unwrap_or_else(|| Key::from(&[0; 64]));
+    let mut cookie_key = Key::from(&[0; 64]);
+    if session_enabled {
+        cookie_key = Key::from(&load_signing_key("hmac.bin"));
+    }
 
     let mut server = HttpServer::new(move || {
         let mut custom_default_headers = middleware::DefaultHeaders::new();
