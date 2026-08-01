@@ -247,7 +247,6 @@ struct ResolvedSession {
     ttl_hours: i64,
     secure_cookie: bool,
     age_value: Option<i16>,
-    signing_key: Option<Vec<u8>>,
     required_header: Option<HeaderRequirement>,
     required_ipv4: Option<Vec<Ipv4Cidr>>,
     required_ipv6: Option<Vec<Ipv6Cidr>>,
