@@ -386,7 +386,6 @@ fn load_signing_key(path: &str) -> [u8; 64] {
     c_bytes
 }
 
-
 fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
     let certfile = File::open(filename).expect("cannot open certificate file");
     let mut reader = BufReader::new(certfile);
@@ -777,10 +776,6 @@ async fn main() -> eyre::Result<()> {
         .collect();
 
     let raw_sess = &config.web.session;
-    let signing_key: Option<Vec<u8>> = raw_sess
-        .secure
-        .as_ref()
-        .map(|s| load_signing_key(&s.key_path));
 
     let required_ipv4: Option<Vec<Ipv4Cidr>> = raw_sess
         .required
