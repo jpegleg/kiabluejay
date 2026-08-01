@@ -521,7 +521,7 @@ And then in our `morph.yaml` we would have a stanza for requiring that header:
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
-The cookie signing key the "hmac.bin" 64 byte file in the working directory of the kiebluejay process. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
+The cookie signing key is a file you insert named "hmac.bin", a 64 byte file of hopefully random bytes placed in the working directory of the kiabluejay process. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts matches will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are explicitly defining the protected content with each file (URI context pattern) that is protected behind the "sessions" feature.</b>
