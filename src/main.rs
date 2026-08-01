@@ -330,14 +330,6 @@ fn validate_config(config: &Config) -> Result<(), String> {
             missing.join(", ")
         ));
     }
-    if let Some(sec) = &sess.secure
-        && !Path::new(&sec.key_path).is_file()
-    {
-        return Err(format!(
-            "`session.secure.key_path` '{}' does not exist or is not a file.",
-            sec.key_path
-        ));
-    }
 
     if let Some(required) = &sess.required {
         if let Some(ipv4) = &required.ipv4 {
