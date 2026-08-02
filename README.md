@@ -434,6 +434,34 @@ In many cases we can just let the cookie expire, but if we want to include some 
 
 <b>Important note:</b> If "sessions" are enabled, then a 64 byte file named "hmac.bin" must be in the pwd of the running kiabluejay process ('/' for the container version). Otherwise kiabluejay will refuse to start. This was an important fix introduced in 0.2.9 to avoid cases were defaults could be unexpectedly used and allow cookie forgery.
 
+#### Example generating the hmac.bin file
+
+This file is a secret if the cookies are in secure mode and the security of the cookies matters, such as for auth purposes. If the cookies are just used for sessions and they don't protect secrets, which is a common case for kiabluejay, then the security of the cookies does not matter.
+
+Because the security of the cookies does matter for cases where the session cookies are used for authenticated access, we use secure cookies with some measures to protect against CSRF and other types of forgeries.
+
+The security of the hmac.bin file becomes critical when the cookie security becomes critical. We may want to set 600 unix permissions on the hmac.bin, and generate it on a secure location, manage it with secrets management processes, and generate it with strong randomness.
+
+Here is an example using [giant-spellbook](https://github.com/jpegleg/giant-spellbook/) to generate the hmac.bin file:
+
+```
+giant-spellbook generate rng 64 hmac.bin
+```
+
+We could also do the task with other shell commands, such as with `dd`, etc:
+
+```
+dd if=/dev/urandom of=hmac.bin bs=1 count=64
+```
+
+And then to set the file permissions to 600:
+
+```
+chmod 600 hmac.bin
+```
+
+If multiple instances of kiabluejay serve the same sessions (if a client secure cookie is to be recognized as valid across multiple kiabluejays), then they need the same hmac.bin file.
+
 #### About the web code, the HTML and javascript and how it can use kiabluejay
 
 The most simple and normal way to use kiabluejay is to serve up a "web root" of files from a "directory" (folder).
@@ -521,12 +549,12 @@ And then in our `morph.yaml` we would have a stanza for requiring that header:
 
 The "value" config options within sessions is the number one less than the required number to get a cookie. So when we use "20" for "value", that sets the value required submitted value to be 21 or greater to get a cookie issued.
 
-The cookie signing key is a file you insert named "hmac.bin", a 64 byte file of hopefully random bytes placed in the working directory of the kiabluejay process. The raw bytes from the file are used as seed into the transform to the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
+The cookie signing key is a file you insert named "hmac.bin", a 64 byte file of hopefully random bytes placed in the working directory of the kiabluejay process. The raw bytes from the file are used as seed into the transform of the secret used in HMAC for the secure cookies feature. The cookie middlware is entirely provided by Actix.
 
 <b>Important note: when using "sessions", the "index_first_visit" page must be self contained because assets outside of that file will not load without a session cookie.
 This means that any CSS, javascript, etc must be inside that "index_first_visit" file. The exception to this is if the "contexts" feature is used, then only the specified protected contexts matches will require the session cookie. This can enable resources outside of the login page to be loaded without a session cookie. By enabling "contexts" configuration, you are explicitly defining the protected content with each file (URI context pattern) that is protected behind the "sessions" feature.</b>
 
-If we disable "sessions" by setting "enabled: false" then we can skip the  requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
+If we disable "sessions" by setting "enabled: false" then we can skip the requirements on the content, otherwise requests without a session cookie are sent back to our "index_first_visit" page.
 
 
 ### The "kiastack"
@@ -588,10 +616,10 @@ export RUN_ID="$(hostname)-$(date +%Y%m%d%H%M)"
 
 podman run -d -it --network=host \
   --env RUN_ID \
-  -v /opt/kiabluejay_live/morph.yaml:/morph.yaml \
-  -v /var/www/html/:/var/www/html/
-  -v /opt/kiabluejay_crypt/:/opt/crypt/ \
-  -v /opt/kiabluejaye_cookie/hmac.bin:/hmac.bin \
+  -v /opt/kiabluejay_live/morph.yaml:/morph.yaml:ro \
+  -v /var/www/html/:/var/www/html/:ro
+  -v /opt/kiabluejay_crypt/:/opt/crypt/:ro \
+  -v /opt/kiabluejaye_cookie/hmac.bin:/hmac.bin:ro \
   carefuldata/kiabluejay:latest
 
 ```
