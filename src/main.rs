@@ -374,7 +374,7 @@ fn validate_config(config: &Config) -> Result<(), String> {
             }
         }
     }
-
+    
     Ok(())
 }
 
@@ -494,7 +494,7 @@ async fn logout(
             Some(age) => age as i32,
             None => 0,
         };
-        
+
         if !required_header_satisfied(&req, &state.session.required_header) {
              return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
@@ -510,7 +510,7 @@ async fn logout(
         if info.fage > threshold {
             if sess.enabled {
                 let session = req.get_session();
-                let _ = session.purge();
+                session.purge();
             }
         }
         return open_configured_file(&state.static_dir, &pages.index_first_visit).await
@@ -539,7 +539,7 @@ async fn newcook(
             Some(age) => age as i32,
             None => 0,
         };
-        
+
         if !required_header_satisfied(&req, &state.session.required_header) {
             return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
         }
@@ -737,7 +737,7 @@ async fn main() -> eyre::Result<()> {
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
 
     log::info!(
-        "{{\"event\":\"initialized version 0.2.9\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"event\":\"initialized version 0.2.10\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
         readi,
         runid
     );
