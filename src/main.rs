@@ -729,7 +729,8 @@ async fn open_path_under_static_root(
 async fn main() -> eyre::Result<()> {
     env_logger::Builder::new()
         .filter_level(LevelFilter::Info)
-        .filter_module("actix_server", LevelFilter::Warn)
+        .filter_module("actix_server", LevelFilter::Off)
+        .filter_module("actix_session", LevelFilter::Off)
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
