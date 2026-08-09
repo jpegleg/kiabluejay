@@ -619,7 +619,7 @@ podman run -d -it --network=host \
   -v /opt/kiabluejay_live/morph.yaml:/morph.yaml:ro \
   -v /var/www/html/:/var/www/html/:ro
   -v /opt/kiabluejay_crypt/:/opt/crypt/:ro \
-  -v /opt/kiabluejaye_cookie/hmac.bin:/hmac.bin:ro \
+  -v /opt/kiabluejay_cookie/hmac.bin:/hmac.bin:ro \
   carefuldata/kiabluejay:latest
 
 ```
