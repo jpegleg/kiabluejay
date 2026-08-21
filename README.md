@@ -31,7 +31,7 @@ Adjust the content-security-policy to match the needs of the web code or remove 
 to meet the needs of the site, this reference enables visitor browsers to cache for 600 seconds.
 
 ```
-workers: 1
+workers: 2
 
 web:
   static_dir: /var/www/html/
