@@ -396,16 +396,16 @@ web:
       - "materials.html"
       - "shop.html"
       - "js/factory.js"
-      - "images/products_00001.png'
-      - "images/products_00002.png'
-      - "images/wine_of_the_month.png'
-      - "images/products_00003.png'
-      - "images/products_00004.png'
-      - "images/products_00005.png'
-      - "images/products_00006.png'
-      - "images/products_00007.png'
-      - "images/products_00008.png'
-      - "images/products_00009.png'
+      - "images/products_00001.png"
+      - "images/products_00002.png"
+      - "images/wine_of_the_month.png"
+      - "images/products_00003.png"
+      - "images/products_00004.png"
+      - "images/products_00005.png"
+      - "images/products_00006.png"
+      - "images/products_00007.png"
+      - "images/products_00008.png"
+      - "images/products_00009.png"
       - "css/depth.css"
     pages:
       index_first_visit: "index.html"
