@@ -203,8 +203,8 @@ pub fn panic_catch() {
                 error!(
                     "panicked at '{}'", errout,
                     {
-                        thread: thread,
-                        location: format!("{}:{}", location.file(), location.line())
+                        thread: format!("\"{}\"", thread),
+                        location: format!("\"{}:{}\"", location.file(), location.line())
                     }
                 );
             }
