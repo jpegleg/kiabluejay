@@ -12,7 +12,7 @@ keywords = ["hybrid-pqc", "web-server", "secure-server", "actix", "rustls"]
 categories = ["network-programming", "web-programming::http-server"]
 
 [dependencies]
-actix-web = { version = "4.14", features = ["rustls", "rustls-0_23"] }
+actix-web = { version = "4.15", features = ["rustls", "rustls-0_23"] }
 rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
 rustls-webpki = { version = "0.102.8", features = ["aws_lc_rs"] }
 rustls-pemfile = "2"
@@ -27,7 +27,7 @@ chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
 serde = { version = "1.0.229", features = ["derive"] }
-yaml_serde = "0.10.4"
+yaml_serde = "0.10.7"
 kv-log-macro = "1.0.7"
 
 [profile.release]
