@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -19,13 +19,13 @@ use actix_web::{
 };
 use actix_web_lab::header::StrictTransportSecurity;
 use actix_web_lab::middleware::RedirectHttps;
-use chrono::prelude::*;
-use log::LevelFilter;
 use rustls::crypto::{CryptoProvider, aws_lc_rs as provider};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{self};
 use serde::Deserialize;
+
+mod json_events;
 
 const PROTECTED_HEADERS: &[&str] = &[
     "x-content-type-options",
@@ -86,8 +86,7 @@ struct SessionRequiredConfig {
 }
 
 #[derive(Deserialize, Clone)]
-struct SessionSecureConfig {
-}
+struct SessionSecureConfig {}
 
 #[derive(Deserialize, Clone)]
 struct SessionConfig {
@@ -374,14 +373,16 @@ fn validate_config(config: &Config) -> Result<(), String> {
             }
         }
     }
-    
+
     Ok(())
 }
 
 fn load_signing_key(path: &str) -> [u8; 64] {
-    let mut f = File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
+    let mut f =
+        File::open(path).unwrap_or_else(|e| panic!("cannot open signing key '{}': {}", path, e));
     let mut c_bytes = [0; 64];
-    f.read_exact(&mut c_bytes).unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
+    f.read_exact(&mut c_bytes)
+        .unwrap_or_else(|e| panic!("cannot read signing key '{}': {}", path, e));
     c_bytes
 }
 
@@ -496,7 +497,7 @@ async fn logout(
         };
 
         if !required_header_satisfied(&req, &state.session.required_header) {
-             return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await;
         }
 
         if !required_ip_satisfied(
@@ -504,7 +505,7 @@ async fn logout(
             &state.session.required_ipv4,
             &state.session.required_ipv6,
         ) {
-            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await;
         }
 
         if info.fage > threshold {
@@ -513,9 +514,9 @@ async fn logout(
                 session.purge();
             }
         }
-        return open_configured_file(&state.static_dir, &pages.index_first_visit).await
+        return open_configured_file(&state.static_dir, &pages.index_first_visit).await;
     } else {
-        return open_configured_file(&state.static_dir, "/index.html").await
+        return open_configured_file(&state.static_dir, "/index.html").await;
     }
 }
 
@@ -541,7 +542,7 @@ async fn newcook(
         };
 
         if !required_header_satisfied(&req, &state.session.required_header) {
-            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await;
         }
 
         if !required_ip_satisfied(
@@ -549,7 +550,7 @@ async fn newcook(
             &state.session.required_ipv4,
             &state.session.required_ipv6,
         ) {
-            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await
+            return open_configured_file(&state.static_dir, &pages.cookie_forbidden).await;
         }
 
         if info.fage > threshold {
@@ -571,7 +572,7 @@ async fn newcook(
             .await
         }
     } else {
-        return open_configured_file(&state.static_dir, "index.html").await
+        return open_configured_file(&state.static_dir, "index.html").await;
     }
 }
 
@@ -727,22 +728,12 @@ async fn open_path_under_static_root(
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> eyre::Result<()> {
-    env_logger::Builder::new()
-        .filter_level(LevelFilter::Info)
-        .filter_module("actix_server", LevelFilter::Off)
-        .filter_module("actix_session", LevelFilter::Off)
-        .format(|buf, record| writeln!(buf, "{}", record.args()))
+    json_events::builder()
+        .target(json_events::env_logger::Target::Stdout)
         .init();
-
-    let readi = Utc::now().to_rfc3339();
+    json_events::panic_catch();
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
-
-    log::info!(
-        "{{\"event\":\"initialized version 0.2.11\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
-        readi,
-        runid
-    );
-
+    log::info!("initialized version 0.2.11");
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
     let config: Config = yaml_serde::from_reader(config_file).expect("failed to read morph.yaml");
 
@@ -760,10 +751,9 @@ async fn main() -> eyre::Result<()> {
         .collect();
 
     if !skipped.is_empty() {
-        log::info!(
-            "{{\"event\":\"protected_headers_skipped\",\"headers\":\"{}\",\"run_id\":\"{}\"}}",
-            skipped.join(", "),
-            runid
+        log::warn!(
+            "protected headers for run_id {runid} were attempted in morph.yaml config, ignoring as these are already set automatically for security reasons: {}",
+            skipped.join(",")
         );
     }
 
@@ -826,12 +816,10 @@ async fn main() -> eyre::Result<()> {
         session: resolved_session.clone(),
     });
 
-    let readi = Utc::now().to_rfc3339();
     log::info!(
-        "{{\"event\":\"configuration_loaded\",\"workers\":\"{}\",\"listeners\":\"{}\",\"timestamp\":\"{}\",\"run_id\":\"{}\"}}",
+        "{{\"log\":\"configuration_loaded\",\"workers\":\"{}\",\"listeners\":\"{}\",\"run_id\":\"{}\"}}",
         config.workers.unwrap_or(2),
         config.listeners.len(),
-        readi,
         runid
     );
 
@@ -867,7 +855,7 @@ async fn main() -> eyre::Result<()> {
             )
             .wrap(custom_default_headers)
             .wrap(middleware::Logger::new(
-                "{\"event\":\"ingress_http\",\"client_address\":\"%a\",\"request_start_time\":\"%t\",\"HTTP\":\"%s\",\"http_request_first_line\":\"%r\",\"size\":\"%b\",\"server_time\":\"%T\",\"referer\":\"%{Referer}i\",\"user_agent\":\"%{User-Agent}i\",\"run_id\":\"%{RUN_ID}e\"}",
+                "{\"log\":\"ingress_http\",\"client_address\":\"%a\",\"request_start_time\":\"%t\",\"HTTP\":\"%s\",\"http_request_first_line\":\"%r\",\"size\":\"%b\",\"server_time\":\"%T\",\"referer\":\"%{Referer}i\",\"user_agent\":\"%{User-Agent}i\",\"run_id\":\"%{RUN_ID}e\"}",
             ))
             .wrap(Condition::new(
                 session_enabled,
@@ -913,22 +901,17 @@ async fn main() -> eyre::Result<()> {
 
                 server = server.bind_rustls_0_23(&addr, tls_config)?;
 
-                let listeni = Utc::now().to_rfc3339();
                 log::info!(
-                    "{{\"event\":\"server_listening_https\",\"addr\":\"{}\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+                    "\"event\":\"server_listening_https\",\"addr\":\"{}\",\"run_id\":\"{}\"",
                     addr,
-                    listeni,
                     runid
                 );
             }
             None => {
                 server = server.bind(&addr)?;
-
-                let listeni = Utc::now().to_rfc3339();
                 log::info!(
-                    "{{\"event\":\"server_listening_http\",\"addr\":\"{}\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
+                    "\"event\":\"server_listening_http\",\"addr\":\"{}\",\"run_id\":\"{}\"",
                     addr,
-                    listeni,
                     runid
                 );
             }
@@ -936,10 +919,8 @@ async fn main() -> eyre::Result<()> {
     }
 
     server.run().await?;
-    let stopi = Utc::now().to_rfc3339();
     log::info!(
-        "{{\"event\":\"server_shutdown_arrived\",\"time\":\"{}\",\"run_id\":\"{}\"}}",
-        stopi,
+        "\"event\":\"server_shutdown_arrived\",\"run_id\":\"{}\"",
         runid
     );
 
