@@ -28,6 +28,7 @@ actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
 serde = { version = "1.0.229", features = ["derive"] }
 yaml_serde = "0.10.4"
+kv-log-macro = "1.0.7"
 
 [profile.release]
 opt-level = 3
