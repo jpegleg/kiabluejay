@@ -577,8 +577,7 @@ All together they are the kiastack and can handle domain routing, failover, and 
 
 Kiamagpie has different features and is more flexible in configuration, focusing on hot reloading of certificates and keys, content caching, multi-protocol (including QUIC), and multi-domain support.
 Kiabluejay is focused speed and security, cookie session enablement, and hot content reloading (not hot key and cert reloading).
-Both have configurable redirects, have JSON event logs, and are multi-listener. The kiamagpie event logs are more comprehensive, while kiabluejay does have some non-JSON output for some
-error conditions and is only tracking JSON events at the HTTP level, where as kiamagpie tracks events at the TCP level.
+Both have configurable redirects, have JSON event logs, and are multi-listener. The kiamagpie event logs are more comprehensive, while kiabluejay does events at the HTTP level, where as kiamagpie tracks events at the TCP level.
 
 Kiabluejay will quickly panic if a certificate or key could not be loaded during initialization, this is intentional. Read output if the behavior is not what you expect and double check the mounts, morph.yaml values, file and directory names and permissions.
 
