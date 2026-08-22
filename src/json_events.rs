@@ -1,11 +1,10 @@
 pub use log::Level;
 use log::{LevelFilter, Record, kv, logger};
-use std::fmt;
 pub extern crate env_logger;
 use env_logger::Builder;
 use std::{
     io::{self, Write},
-    panic, thread,
+    panic, thread, fmt
 };
 
 pub const STATIC_MAX_LEVEL: LevelFilter = log::STATIC_MAX_LEVEL;
