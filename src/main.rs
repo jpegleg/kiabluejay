@@ -733,7 +733,7 @@ async fn main() -> eyre::Result<()> {
         .init();
     json_events::panic_catch();
     let runid = env::var("RUN_ID").unwrap_or("kiabluejay".to_string());
-    log::info!("initialized version 0.2.11");
+    log::info!("initialized version 0.2.12");
     let config_file = File::open("morph.yaml").expect("Failed to open morph.yaml");
     let config: Config = yaml_serde::from_reader(config_file).expect("failed to read morph.yaml");
 
