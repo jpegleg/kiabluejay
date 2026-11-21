@@ -1,6 +1,6 @@
 [package]
 name = "kiabluejay"
-version = "0.2.11"
+version = "0.2.12"
 edition = "2024"
 authors = ["Keegan Bowen <carefuldata@protonmail.com>"]
 license = "MIT"
@@ -14,7 +14,6 @@ categories = ["network-programming", "web-programming::http-server"]
 [dependencies]
 actix-web = { version = "4.15", features = ["rustls", "rustls-0_23"] }
 rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
-rustls-webpki = { version = "0.102.8", features = ["aws_lc_rs"] }
 rustls-pemfile = "2"
 aws-lc-rs = { version = "1.18", features = ["ring-sig-verify"] }
 actix-web-lab = "0.26"
