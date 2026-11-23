@@ -22,7 +22,7 @@ log = { version = "0.4", features = ["kv_unstable", "kv_unstable_std"] }
 env_logger = "0.11"
 eyre = { version = "0.6", default-features = false, features = ["auto-install", "track-caller"] }
 tokio = { version = "1.54.1", features = ["time", "rt", "macros"] }
-chrono = "0.4"
+jiff = "1.0.2"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
 serde = { version = "1.0.229", features = ["derive"] }
