@@ -1,5 +1,6 @@
 pub use log::Level;
 use log::{LevelFilter, Record, kv, logger};
+use jiff::Timestamp;
 pub extern crate env_logger;
 use env_logger::Builder;
 use std::{
@@ -225,7 +226,7 @@ where
     F: Write,
 {
     write!(f, "{{")?;
-    write!(f, "\"time\":\"{}\"", chrono::Utc::now().to_rfc3339())?;
+    write!(f, "\"time\":\"{}\"", Timestamp::now())?;
     write!(f, ",\"level\":\"{}\"", record.level())?;
     if record.args().to_string().starts_with("\"") {
         let jrecord = &record.args().to_string();
