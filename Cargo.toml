@@ -12,16 +12,16 @@ keywords = ["hybrid-pqc", "web-server", "secure-server", "actix", "rustls"]
 categories = ["network-programming", "web-programming::http-server"]
 
 [dependencies]
-actix-web = { version = "4.15", features = ["rustls", "rustls-0_23"] }
+actix-web = { version = "4.20", features = ["rustls", "rustls-0_23"] }
 rustls = { version = "0.23", features = [ "aws_lc_rs" ] }
 rustls-pemfile = "2"
-aws-lc-rs = { version = "1.18", features = ["ring-sig-verify"] }
+aws-lc-rs = { version = "1.19", features = ["ring-sig-verify"] }
 actix-web-lab = "0.26"
 actix-files = "0.6"
 log = { version = "0.4", features = ["kv_unstable", "kv_unstable_std"] }
 env_logger = "0.11"
 eyre = { version = "0.6", default-features = false, features = ["auto-install", "track-caller"] }
-tokio = { version = "1.53.1", features = ["time", "rt", "macros"] }
+tokio = { version = "1.54.1", features = ["time", "rt", "macros"] }
 chrono = "0.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 cookie = "0.16"
